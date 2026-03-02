@@ -1,0 +1,13 @@
+
+# Always use LF for shell scripts and configs used by Linux/WSL
+*.sh text eol=lf
+*.bash text eol=lf
+*.zsh text eol=lf
+
+install.sh text eol=lf
+
+update-corporate-ca/bin/* text eol=lf
+update-corporate-ca/config/* text eol=lf
+
+# Optional: keep Markdown consistent too
+*.md text eol=lf
