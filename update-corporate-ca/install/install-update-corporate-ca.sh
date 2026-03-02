@@ -9,9 +9,12 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT_SRC="$ROOT_DIR/$SCRIPT_REL"
 CONFIG_SRC="$ROOT_DIR/$CONFIG_REL"
 
-log()  { printf "%s\n" "$*"; }
-warn() { printf "WARNING: %s\n" "$*" >&2; }
-err()  { printf "ERROR: %s\n" "$*" >&2; }
+VERBOSE=0
+
+log()   { printf "✓ %s\n" "$*"; }
+warn()  { printf "⚠ WARNING: %s\n" "$*" >&2; }
+err()   { printf "✗ ERROR: %s\n" "$*" >&2; }
+debug() { [[ "$VERBOSE" -eq 1 ]] && printf "  [DEBUG] %s\n" "$*" || true; }
 
 require_sudo() {
   if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
@@ -20,18 +23,21 @@ require_sudo() {
 }
 
 install_deps_apt() {
-  log "Installing dependencies using apt..."
-  sudo apt-get update -y
-  sudo apt-get install -y openssl ca-certificates curl
+  debug "Installing dependencies using apt..."
+  sudo apt-get update -y >/dev/null 2>&1
+  sudo apt-get install -y openssl ca-certificates curl >/dev/null 2>&1
+  log "Dependencies installed via apt"
 }
 
 ensure_deps() {
   local missing=()
   for cmd in openssl curl; do
+    debug "Checking for command: $cmd"
     command -v "$cmd" >/dev/null 2>&1 || missing+=("$cmd")
   done
 
   if [[ "${#missing[@]}" -eq 0 ]]; then
+    log "Dependencies verified (openssl, curl)"
     return 0
   fi
 
@@ -48,6 +54,7 @@ ensure_deps() {
 
 normalize_lf() {
   # Normalize installed binary + config to LF to prevent bash\r and config $'\r' issues
+  debug "Normalizing line endings for installed files"
   sudo sed -i 's/\r$//' "/usr/local/bin/$PROGRAM" || true
   sudo chmod +x "/usr/local/bin/$PROGRAM"
 
@@ -57,6 +64,36 @@ normalize_lf() {
 }
 
 main() {
+  # Parse arguments
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --verbose)
+        VERBOSE=1
+        shift
+        ;;
+      -h|--help)
+        cat <<'EOF'
+Usage:
+  install-update-corporate-ca.sh [--verbose]
+
+Options:
+  --verbose  Show detailed debug information during installation
+
+Description:
+  Installs the update-corporate-ca script to /usr/local/bin and
+  the configuration file to /etc/update-corporate-ca.conf
+EOF
+        exit 0
+        ;;
+      *)
+        err "Unknown option: $1"
+        exit 1
+        ;;
+    esac
+  done
+
+  debug "Verbose mode enabled"
+
   # Soft warning if running from /mnt/c (WSL Windows mount)
   if [[ "$ROOT_DIR" == /mnt/* ]]; then
     warn "You are running this installer from a Windows-mounted path ($ROOT_DIR)."
@@ -72,29 +109,32 @@ main() {
     exit 1
   fi
 
+  debug "Script source: $SCRIPT_SRC"
+  debug "Config source: $CONFIG_SRC"
+
   require_sudo
   ensure_deps
 
-  log "Installing $PROGRAM as a system command..."
-
+  debug "Installing $PROGRAM to /usr/local/bin/$PROGRAM"
   sudo install -m 0755 "$SCRIPT_SRC" "/usr/local/bin/$PROGRAM"
+  log "Script installed to /usr/local/bin/$PROGRAM"
 
   if [[ ! -f "/etc/update-corporate-ca.conf" ]]; then
+    debug "Installing config to /etc/update-corporate-ca.conf"
     sudo install -m 0644 "$CONFIG_SRC" "/etc/update-corporate-ca.conf"
-    log "Installed config: /etc/update-corporate-ca.conf"
+    log "Config installed to /etc/update-corporate-ca.conf"
   else
-    log "Config already exists: /etc/update-corporate-ca.conf (leaving unchanged)"
-    log "To update it, edit the file manually or replace it."
+    debug "Config already exists at /etc/update-corporate-ca.conf"
+    warn "Config already exists: /etc/update-corporate-ca.conf (leaving unchanged)"
   fi
 
   normalize_lf
 
-  log "Done."
-  log ""
-  log "Try:"
-  log "  $PROGRAM help"
-  log "  $PROGRAM --dry-run"
-  log "  $PROGRAM"
+  log "Installation complete!"
+  debug "Try:"
+  debug "  $PROGRAM --help"
+  debug "  $PROGRAM --dry-run"
+  debug "  $PROGRAM"
 }
 
-main
+main "$@"
