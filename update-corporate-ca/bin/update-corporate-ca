@@ -2,36 +2,18 @@
 set -euo pipefail
 
 PROGRAM="update-corporate-ca"
-VERSION="1.2.0"
+VERSION="1.4.0"
 
-# System-wide config (installed by .dotfiles/install.sh)
 SYSTEM_CONFIG="/etc/update-corporate-ca.conf"
-
-# Cert install directory
 CERT_DIR="/usr/local/share/ca-certificates"
-
-# Our certificate naming prefix (safe for cleanup)
 CERT_PREFIX="corporate-proxy-ca-"
-
-# Work dir
 WORKDIR="$(mktemp -d /tmp/update-corporate-ca.XXXXXX)"
 
 cleanup_tmp() { rm -rf "$WORKDIR"; }
 trap cleanup_tmp EXIT
 
-# Logging (per-user by default)
-DEFAULT_LOG_FILE="${HOME:-/tmp}/.cache/update-corporate-ca.log"
-LOG_FILE="${LOG_FILE:-$DEFAULT_LOG_FILE}"
-LOG_ENABLED=1
-
-DRY_RUN=0
-VERBOSE=0
-DO_CLEANUP=0
-CONFIG_FILE=""
-PRINT_CONFIG=0
-
 # -------------------------------
-# Defaults (can be overridden by config)
+# Defaults (override via /etc/update-corporate-ca.conf)
 # -------------------------------
 HOSTS=(
   "version-fox.github.io"
@@ -53,7 +35,20 @@ CURL_CONNECT_TIMEOUT="8"
 CURL_MAX_TIME="20"
 
 # -------------------------------
-# Logging helpers
+# Flags
+# -------------------------------
+DRY_RUN=0
+VERBOSE=0
+DO_CLEANUP=0
+CONFIG_FILE=""
+PRINT_CONFIG=0
+LOG_ENABLED=1
+
+DEFAULT_LOG_FILE="${HOME:-/tmp}/.cache/update-corporate-ca.log"
+LOG_FILE="${LOG_FILE:-$DEFAULT_LOG_FILE}"
+
+# -------------------------------
+# Logging
 # -------------------------------
 timestamp() { date +"%Y-%m-%d %H:%M:%S%z"; }
 
@@ -91,7 +86,7 @@ usage() {
 $PROGRAM $VERSION
 
 Purpose:
-  Fetch corporate-proxy CA certificates presented during TLS interception,
+  Fetch corporate-proxy CA certificates presented during TLS interception (network capture),
   install them into the Linux trust store, update CA bundles, and run HTTPS tests.
 
 Usage:
@@ -99,15 +94,15 @@ Usage:
   $PROGRAM help
 
 Options:
-  --cleanup           Remove certificates installed by this tool (prefix: ${CERT_PREFIX}*.crt),
-                      update CA store, and exit (unless combined with other actions).
-  --dry-run           Show what would be installed/removed without changing anything.
-  --config <file>     Use a specific config file (in addition to /etc/update-corporate-ca.conf).
-  --verbose           Print debug logs.
-  --print-config      Print effective configuration and exit.
-  --no-log            Disable logging.
-  --log-file <file>   Override log file path (default: $DEFAULT_LOG_FILE).
-  -h, --help          Show help.
+  --cleanup                Remove certificates installed by this tool (${CERT_PREFIX}*.crt),
+                           update CA store, and exit.
+  --dry-run                Show what would be installed/removed without changing anything.
+  --config <file>          Load an additional config file (in addition to $SYSTEM_CONFIG).
+  --verbose                Enable debug logs.
+  --print-config           Print effective configuration and exit.
+  --no-log                 Disable logging.
+  --log-file <file>        Override log file path (default: $DEFAULT_LOG_FILE).
+  -h, --help               Show help.
 
 Examples:
   $PROGRAM
@@ -115,23 +110,22 @@ Examples:
   $PROGRAM --cleanup
   $PROGRAM --verbose
   $PROGRAM --log-file /tmp/update-corporate-ca.log
-  $PROGRAM --config ./update-corporate-ca.conf
 
 Notes:
-  - Run as a normal user. The command uses sudo only when needed.
-  - HTTPS tests accept redirects/auth codes. Any non-000 HTTP code is considered success.
+  - Run as a normal user; sudo is used only when needed.
+  - Only CA certificates (CA:TRUE) matching ALLOWLIST_REGEX are installed.
+  - HTTPS tests accept redirects/auth codes; any non-000 HTTP code is success.
 
 EOF
 }
 
-# allow "help" as a command
 if [[ "${1:-}" == "help" ]]; then
   usage
   exit 0
 fi
 
 # -------------------------------
-# Argument parsing
+# Args
 # -------------------------------
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -148,7 +142,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # -------------------------------
-# Config loading (system -> explicit)
+# Config
 # -------------------------------
 load_config() {
   if [[ -f "$SYSTEM_CONFIG" ]]; then
@@ -184,7 +178,7 @@ print_config() {
 }
 
 # -------------------------------
-# Dependency checks
+# Dependencies
 # -------------------------------
 need_cmd() {
   command -v "$1" >/dev/null 2>&1 || { err "Missing dependency: $1"; exit 1; }
@@ -198,31 +192,12 @@ ensure_tmp_permissions() {
 }
 
 # -------------------------------
-# Certificate helpers
+# X509 helpers
 # -------------------------------
-fetch_chain_pem() {
-  local host="$1"
-  local out="$2"
-
-  debug "Fetching certificate chain from: $host"
-  echo | openssl s_client -showcerts -servername "$host" -connect "$host:443" 2>/dev/null \
-    | sed -n '/-----BEGIN CERTIFICATE-----/,/-----END CERTIFICATE-----/p' > "$out"
-
-  grep -q "BEGIN CERTIFICATE" "$out"
-}
-
 is_valid_x509() { openssl x509 -in "$1" -noout >/dev/null 2>&1; }
 
 is_ca_true() {
   openssl x509 -in "$1" -noout -text 2>/dev/null | grep -q "CA:TRUE"
-}
-
-has_key_usage_cert_sign() {
-  openssl x509 -in "$1" -noout -text 2>/dev/null | awk '
-    BEGIN { found=0 }
-    /Key Usage/ && /Certificate Sign/ { found=1 }
-    END { exit (found?0:1) }
-  '
 }
 
 subject_line() { openssl x509 -in "$1" -noout -subject 2>/dev/null | sed 's/^subject= *//'; }
@@ -230,8 +205,9 @@ issuer_line()  { openssl x509 -in "$1" -noout -issuer  2>/dev/null | sed 's/^iss
 enddate_line() { openssl x509 -in "$1" -noout -enddate 2>/dev/null | sed 's/^notAfter=//'; }
 
 sha256_fp() {
+  # Output only the hex fingerprint, no label, no colons, no spaces.
   openssl x509 -in "$1" -noout -fingerprint -sha256 2>/dev/null \
-    | sed 's/^SHA256 Fingerprint=//; s/://g; s/[[:space:]]//g'
+    | sed -E 's/^SHA256 Fingerprint=//; s/://g; s/[[:space:]]//g'
 }
 
 matches_allowlist() {
@@ -241,17 +217,17 @@ matches_allowlist() {
   echo "$subj $iss" | grep -Eiq "$ALLOWLIST_REGEX"
 }
 
-install_cert() {
-  local cert_file="$1"
+install_cert_pem() {
+  local pem="$1"
   local fp dest subj iss exp
 
-  fp="$(sha256_fp "$cert_file")"
+  fp="$(sha256_fp "$pem")"
   [[ -n "$fp" ]] || return 1
 
   dest="$CERT_DIR/${CERT_PREFIX}${fp}.crt"
-  subj="$(subject_line "$cert_file")"
-  iss="$(issuer_line "$cert_file")"
-  exp="$(enddate_line "$cert_file")"
+  subj="$(subject_line "$pem")"
+  iss="$(issuer_line "$pem")"
+  exp="$(enddate_line "$pem")"
 
   if [[ -f "$dest" ]]; then
     debug "Already installed: $dest"
@@ -267,7 +243,7 @@ install_cert() {
     return 0
   fi
 
-  sudo cp "$cert_file" "$dest"
+  sudo cp "$pem" "$dest"
   log "Installed CA certificate:"
   log "  File:    $dest"
   log "  Subject: $subj"
@@ -294,9 +270,6 @@ cleanup_installed_certs() {
     fi
   done
 
-  # Also remove legacy files from earlier experiments (optional but helpful)
-  # This targets only the same prefix if someone created odd filenames with spaces.
-  # We do not remove anything outside our prefix.
   if [[ "$found" -eq 0 ]]; then
     log "No installed certificates found for prefix: $CERT_PREFIX"
   fi
@@ -312,59 +285,23 @@ cleanup_installed_certs() {
 }
 
 # -------------------------------
-# HTTPS tests
+# Network capture (solid parsing)
 # -------------------------------
-curl_test_url() {
-  local url="$1"
-  local code=""
+fetch_chain_pem() {
+  local host="$1"
+  local out="$2"
 
-  code="$(curl -sS -L --connect-timeout "$CURL_CONNECT_TIMEOUT" --max-time "$CURL_MAX_TIME" \
-    -o /dev/null -w "%{http_code}" -I "$url" 2>/dev/null || true)"
+  debug "Fetching certificate chain from: $host"
 
-  if [[ "$code" == "000" || -z "$code" ]]; then
-    code="$(curl -sS -L --connect-timeout "$CURL_CONNECT_TIMEOUT" --max-time "$CURL_MAX_TIME" \
-      -o /dev/null -w "%{http_code}" "$url" 2>/dev/null || true)"
-  fi
+  # Capture only PEM blocks
+  echo | openssl s_client -showcerts -servername "$host" -connect "$host:443" 2>/dev/null \
+    | sed -n '/-----BEGIN CERTIFICATE-----/,/-----END CERTIFICATE-----/p' > "$out"
 
-  if [[ "$code" != "000" && -n "$code" ]]; then
-    log "OK: $url (HTTP $code)"
-    return 0
-  else
-    warn "FAILED: $url (no HTTP response; TLS/proxy/DNS issue likely)"
-    return 1
-  fi
+  grep -q "BEGIN CERTIFICATE" "$out"
 }
 
-main() {
-  # Strong guidance: don’t run as root; we use sudo internally so logs remain per-user.
-  if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
-    warn "Running as root is not recommended. Run as a normal user; sudo will be used only when needed."
-  fi
-
-  need_cmd openssl
-  need_cmd sed
-  need_cmd grep
-  need_cmd awk
-  need_cmd csplit
-  need_cmd curl
-
-  load_config
-
-  if [[ "$PRINT_CONFIG" -eq 1 ]]; then
-    print_config
-    exit 0
-  fi
-
-  ensure_tmp_permissions
-
-  if [[ "$DO_CLEANUP" -eq 1 ]]; then
-    cleanup_installed_certs
-    # If user specified only cleanup, exit now.
-    # If they want cleanup + update in one run, they can run twice or we can extend later.
-    exit 0
-  fi
-
-  log "Fetching certificates presented by the corporate proxy..."
+fetch_and_install_from_hosts() {
+  log "Fetching certificates presented by the corporate proxy (network capture)..."
   local installed=0
 
   for host in "${HOSTS[@]}"; do
@@ -390,32 +327,93 @@ main() {
         continue
       fi
 
-      if ! has_key_usage_cert_sign "$chunk"; then
-        debug "Skipping CA without Certificate Sign usage: $(subject_line "$chunk")"
-        continue
-      fi
-
       if ! matches_allowlist "$chunk"; then
         debug "Skipping CA not matching allowlist ($ALLOWLIST_REGEX): $(subject_line "$chunk")"
         continue
       fi
 
-      if install_cert "$chunk"; then
+      if install_cert_pem "$chunk"; then
         installed=$((installed + 1))
       fi
     done
   done
 
   if [[ "$DRY_RUN" -eq 1 ]]; then
-    log "Dry-run completed."
+    log "Dry-run: network capture stage completed."
+    return 0
+  fi
+
+  if [[ "$installed" -gt 0 ]]; then
+    log "Updating the system CA store..."
+    sudo update-ca-certificates
+  else
+    warn "No corporate CA certificates were installed. They may already be present, or the allowlist/hosts need adjustment."
+  fi
+}
+
+# -------------------------------
+# HTTPS tests (clear diagnostics)
+# -------------------------------
+curl_test_url() {
+  local url="$1"
+  local out rc code
+
+  out="$(curl -sS -L --connect-timeout "$CURL_CONNECT_TIMEOUT" --max-time "$CURL_MAX_TIME" \
+    -o /dev/null -w "%{http_code}" -I "$url" 2>&1)"
+  rc=$?
+  code="${out##*$'\n'}"
+
+  if [[ "$rc" -eq 0 && "$code" != "000" ]]; then
+    log "OK: $url (HTTP $code)"
+    return 0
+  fi
+
+  if echo "$out" | grep -qi "SSL certificate problem"; then
+    warn "FAILED: $url (TLS verification failed: corporate CA missing in trust store)"
+  elif echo "$out" | grep -qi "Could not resolve host"; then
+    warn "FAILED: $url (DNS resolution failed)"
+  elif echo "$out" | grep -qi "Connection timed out"; then
+    warn "FAILED: $url (TCP timeout: VPN/firewall/proxy path issue)"
+  else
+    warn "FAILED: $url (curl error; run with --verbose for details)"
+  fi
+
+  return 1
+}
+
+main() {
+  if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
+    warn "Running as root is not recommended. Run as a normal user; sudo will be used only when needed."
+  fi
+
+  need_cmd openssl
+  need_cmd sed
+  need_cmd grep
+  need_cmd awk
+  need_cmd csplit
+  need_cmd curl
+
+  load_config
+
+  if [[ "$PRINT_CONFIG" -eq 1 ]]; then
+    print_config
     exit 0
   fi
 
-  if [[ "$installed" -eq 0 ]]; then
-    warn "No corporate CA certificates were installed. They may already be present, or the allowlist/hosts need adjustment."
-  else
-    log "Updating the system CA store..."
-    sudo update-ca-certificates
+  ensure_tmp_permissions
+
+  if [[ "$DO_CLEANUP" -eq 1 ]]; then
+    cleanup_installed_certs
+    log "Log file: $LOG_FILE"
+    exit 0
+  fi
+
+  fetch_and_install_from_hosts
+
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    log "Dry-run completed."
+    log "Log file: $LOG_FILE"
+    exit 0
   fi
 
   log "Testing HTTPS connectivity..."
@@ -429,7 +427,7 @@ main() {
   if [[ "$test_fail" -eq 0 ]]; then
     log "Done."
   else
-    warn "Some HTTPS tests failed. Re-run with --verbose and check VPN/proxy connectivity."
+    warn "Some HTTPS tests failed. Run with --verbose or verify VPN/proxy connectivity."
   fi
 
   log "Log file: $LOG_FILE"
