@@ -1,0 +1,7 @@
+tools:
+  nodejs:
+    version: "20.11.0"
+  python:
+    version: "3.12.1"
+  java:
+    version: "latest"

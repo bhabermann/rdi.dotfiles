@@ -3,8 +3,18 @@
 *.sh text eol=lf
 *.bash text eol=lf
 *.zsh text eol=lf
+*.yaml text eol=lf
 
 install.sh text eol=lf
+
+# Component directories
+lib/** text eol=lf
+git/** text eol=lf
+shell/** text eol=lf
+dev-tools/** text eol=lf
+cli-tools/** text eol=lf
+kubernetes/** text eol=lf
+cloud/** text eol=lf
 
 update-corporate-ca/bin/* text eol=lf
 update-corporate-ca/config/* text eol=lf

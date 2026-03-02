@@ -1,0 +1,10 @@
+tools:
+  aws-cli:
+    version: "latest"
+    install_method: "bundled"
+  azure-cli:
+    version: "latest"
+    install_method: "apt"
+  google-cloud-sdk:
+    version: "latest"
+    install_method: "apt"
