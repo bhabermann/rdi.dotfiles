@@ -97,7 +97,7 @@ for component in "${ORDERED_COMPONENTS[@]}"; do
   log "Installing: $component"
   begin_transaction "$component"
   
-  local installer="$SCRIPT_DIR/$component/install/install-${component}*.sh"
+  installer="$SCRIPT_DIR/$component/install/install-${component}*.sh"
   # shellcheck disable=SC2086
   installer_path=$(ls $installer 2>/dev/null | head -n1)
   

@@ -178,6 +178,14 @@ read_component_status() {
   jq -r --arg name "$name" '.[$name].status // "null"' "$DOTFILES_INSTALLED"
 }
 
+# Check if component is already installed
+is_installed() {
+  local name="$1"
+  local status
+  status=$(read_component_status "$name")
+  [[ "$status" == "ok" || "$status" == "imported" ]]
+}
+
 # Append content to a file with delimiters (or replace if exists)
 append_delimited() {
   local filepath="$1"
