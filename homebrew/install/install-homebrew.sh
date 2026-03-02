@@ -39,12 +39,16 @@ fi
 EOF
   )
   
-  append_delimited "$bashrc" "$marker" "$content"
+  append_delimited "$bashrc" "$content" "$marker"
   log "Added Homebrew initialization to ~/.bashrc"
 }
 
 validate_installation() {
-  validate_command "brew" "Homebrew"
+  # Check if brew is available
+  if ! command -v brew &>/dev/null; then
+    err "Homebrew not found in PATH"
+    return 1
+  fi
   
   # Test brew command
   if ! brew --version >/dev/null 2>&1; then

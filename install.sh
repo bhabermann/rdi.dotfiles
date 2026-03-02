@@ -104,7 +104,7 @@ for component in "${ORDERED_COMPONENTS[@]}"; do
   if [[ ! -f "$installer_path" ]]; then
     err "Installer not found: $installer_path"
     rollback_transaction "$component"
-    rollback_cascade
+    rollback_cascade "$component"
     exit 1
   fi
   
@@ -113,7 +113,7 @@ for component in "${ORDERED_COMPONENTS[@]}"; do
   else
     err "Installation failed: $component"
     rollback_transaction "$component"
-    rollback_cascade
+    rollback_cascade "$component"
     exit 1
   fi
 done
