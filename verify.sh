@@ -22,7 +22,11 @@ Options:
   --verbose  Show detailed debug information
 
 Description:
-  Verifies all installed dotfiles components:
+  Verifies all installed essential dotfiles components:
+  - git: Git configuration and aliases
+  - shell: Bash environment and aliases
+  - homebrew: Homebrew package manager
+  - vfox: Version manager for Node.js, Python, Java
   - Checks configuration files exist
   - Validates delimited sections in dotfiles
   - Runs smoke tests for each component
@@ -137,135 +141,27 @@ smoke_test_vfox() {
   return 0
 }
 
-smoke_test_cli_tools() {
-  debug "Testing cli-tools component..."
+smoke_test_homebrew() {
+  debug "Testing homebrew component..."
   
-  local tools_ok=0
-  local tools_total=4
-  
-  # Check each tool
-  if command -v fzf &>/dev/null; then
-    ((tools_ok++))
-    debug "fzf: $(fzf --version | awk '{print $1}')"
-  else
-    warn "fzf not found"
-  fi
-  
-  if command -v rg &>/dev/null; then
-    ((tools_ok++))
-    debug "ripgrep: $(rg --version | head -n1 | awk '{print $2}')"
-  else
-    warn "ripgrep not found"
-  fi
-  
-  if command -v bat &>/dev/null || command -v batcat &>/dev/null; then
-    ((tools_ok++))
-    debug "bat: $(bat --version 2>/dev/null || batcat --version 2>/dev/null | awk '{print $2}')"
-  else
-    warn "bat not found"
-  fi
-  
-  if command -v exa &>/dev/null; then
-    ((tools_ok++))
-    debug "exa: $(exa --version | head -n1 | awk '{print $2}')"
-  else
-    warn "exa not found (optional)"
-  fi
-  
-  if [[ $tools_ok -eq 0 ]]; then
-    err "No CLI tools found"
+  # Check brew is in PATH
+  if ! command -v brew &>/dev/null; then
+    err "brew not found in PATH"
     return 1
   fi
   
-  log "✓ cli-tools: OK ($tools_ok/$tools_total tools available)"
-  return 0
-}
-
-smoke_test_kubernetes() {
-  debug "Testing kubernetes component..."
-  
-  local tools_ok=0
-  local tools_total=3
-  
-  # Check kubectl
-  if command -v kubectl &>/dev/null; then
-    if validate_command "kubectl version --client" "Client Version" >/dev/null; then
-      ((tools_ok++))
-      debug "kubectl: $(kubectl version --client --short 2>/dev/null | grep -oP 'v\d+\.\d+\.\d+' | head -n1)"
-    fi
-  else
-    warn "kubectl not found"
-  fi
-  
-  # Check helm
-  if command -v helm &>/dev/null; then
-    if validate_command "helm version --short" "v" >/dev/null; then
-      ((tools_ok++))
-      debug "helm: $(helm version --short 2>/dev/null | grep -oP 'v\d+\.\d+\.\d+')"
-    fi
-  else
-    warn "helm not found"
-  fi
-  
-  # Check k9s
-  if command -v k9s &>/dev/null; then
-    ((tools_ok++))
-    debug "k9s: $(k9s version --short 2>/dev/null | head -n1 | awk '{print $2}')"
-  else
-    warn "k9s not found"
-  fi
-  
-  if [[ $tools_ok -eq 0 ]]; then
-    err "No Kubernetes tools found"
+  # Check brew version
+  if ! validate_command "brew --version" "Homebrew" >/dev/null; then
+    err "Homebrew validation failed"
     return 1
   fi
   
-  log "✓ kubernetes: OK ($tools_ok/$tools_total tools available)"
-  return 0
-}
-
-smoke_test_cloud() {
-  debug "Testing cloud component..."
-  
-  local tools_ok=0
-  local tools_total=3
-  
-  # Check AWS CLI
-  if command -v aws &>/dev/null; then
-    if validate_command "aws --version" "aws-cli" >/dev/null; then
-      ((tools_ok++))
-      debug "AWS CLI: $(aws --version 2>/dev/null | awk '{print $1}' | cut -d'/' -f2)"
-    fi
-  else
-    warn "AWS CLI not found"
+  # Check for bashrc integration
+  if [[ -f "$HOME/.bashrc" ]] && ! grep -q "dotfiles:homebrew" "$HOME/.bashrc"; then
+    warn "Homebrew not configured in bashrc"
   fi
   
-  # Check Azure CLI
-  if command -v az &>/dev/null; then
-    if az version &>/dev/null; then
-      ((tools_ok++))
-      debug "Azure CLI: $(az version 2>/dev/null | grep -oP '"azure-cli": "\K[^"]+' | head -n1)"
-    fi
-  else
-    warn "Azure CLI not found"
-  fi
-  
-  # Check Google Cloud SDK
-  if command -v gcloud &>/dev/null; then
-    if validate_command "gcloud version" "Google Cloud SDK" >/dev/null; then
-      ((tools_ok++))
-      debug "Google Cloud SDK: $(gcloud version 2>/dev/null | grep "Google Cloud SDK" | awk '{print $4}')"
-    fi
-  else
-    warn "Google Cloud SDK not found"
-  fi
-  
-  if [[ $tools_ok -eq 0 ]]; then
-    err "No cloud CLI tools found"
-    return 1
-  fi
-  
-  log "✓ cloud: OK ($tools_ok/$tools_total tools available)"
+  log "✓ homebrew: OK"
   return 0
 }
 

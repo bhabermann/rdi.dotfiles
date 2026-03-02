@@ -75,30 +75,14 @@ get_installed_version() {
         version=$(bash --version 2>/dev/null | head -n1 | awk '{print $4}')
       fi
       ;;
+    homebrew)
+      if command -v brew &>/dev/null; then
+        version=$(brew --version 2>/dev/null | head -n1 | awk '{print $2}')
+      fi
+      ;;
     vfox)
       if command -v vfox &>/dev/null; then
         version=$(vfox --version 2>/dev/null | grep -oP '\d+\.\d+\.\d+' | head -n1)
-      fi
-      ;;
-    cli-tools)
-      # Use fzf version as representative
-      if command -v fzf &>/dev/null; then
-        version=$(fzf --version 2>/dev/null | awk '{print $1}')
-      fi
-      ;;
-    kubernetes)
-      if command -v kubectl &>/dev/null; then
-        version=$(kubectl version --client --short 2>/dev/null | grep -oP 'v\d+\.\d+\.\d+' | head -n1)
-      fi
-      ;;
-    cloud)
-      # Use AWS CLI version as representative
-      if command -v aws &>/dev/null; then
-        version=$(aws --version 2>/dev/null | awk '{print $1}' | cut -d'/' -f2)
-      elif command -v az &>/dev/null; then
-        version=$(az version 2>/dev/null | grep -oP '"azure-cli": "\K[^"]+' | head -n1)
-      elif command -v gcloud &>/dev/null; then
-        version=$(gcloud version 2>/dev/null | grep "Google Cloud SDK" | awk '{print $4}')
       fi
       ;;
   esac
@@ -113,7 +97,7 @@ import_to_json() {
   local imported_count=0
   
   # Check all known components
-  for component in git shell vfox cloud; do
+  for component in git shell homebrew vfox; do
     local is_installed
     is_installed=$(detect_component "$component")
     

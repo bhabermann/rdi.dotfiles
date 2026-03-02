@@ -124,8 +124,7 @@ EOF
     sudo install -m 0644 "$CONFIG_SRC" "/etc/update-corporate-ca.conf"
     log "Config installed to /etc/update-corporate-ca.conf"
   else
-    debug "Config already exists at /etc/update-corporate-ca.conf"
-    warn "Config already exists: /etc/update-corporate-ca.conf (leaving unchanged)"
+    debug "Config already exists at /etc/update-corporate-ca.conf (leaving unchanged)"
   fi
 
   normalize_lf

@@ -6,15 +6,12 @@
 declare -A COMPONENT_DEPS=(
   ["git"]=""
   ["shell"]=""
-  ["vfox"]="shell"
-  ["cloud"]=""
+  ["homebrew"]="shell"
+  ["vfox"]="shell homebrew"
 )
 
-# Component descriptions for interactive prompts
-declare -A COMPONENT_DESC=(
-  ["vfox"]="Version manager for Node.js, Python, Java (replaces nvm, pyenv, sdkman)"
-  ["cloud"]="Cloud CLIs: AWS, Azure, Google Cloud (for AI integration)"
-)
+# Component descriptions (empty for essential-only mode)
+declare -A COMPONENT_DESC=()
 
 # Get dependencies for a component
 get_dependencies() {
@@ -186,16 +183,8 @@ verify_dependencies() {
 
 # Get list of optional components
 get_optional_components() {
-  local optionals=()
-  
-  # Essential components (git, shell) are not optional
-  for component in "${!COMPONENT_DEPS[@]}"; do
-    if [[ "$component" != "git" ]] && [[ "$component" != "shell" ]]; then
-      optionals+=("$component")
-    fi
-  done
-  
-  echo "${optionals[@]}"
+  # No optional components in essential-only mode
+  echo ""
 }
 
 # Get component description

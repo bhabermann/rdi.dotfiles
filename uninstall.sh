@@ -38,7 +38,7 @@ Description:
 Examples:
   ./uninstall.sh               # Interactive selection
   ./uninstall.sh vfox          # Uninstall vfox only
-  ./uninstall.sh vfox cloud    # Uninstall multiple components
+  ./uninstall.sh vfox homebrew # Uninstall multiple components
 EOF
 }
 
@@ -72,30 +72,12 @@ uninstall_component() {
         rm -rf "$HOME/.vfox"
       fi
       ;;
-    cli-tools)
-      remove_delimited "$HOME/.bashrc" "fzf"
-      if [[ -f "$HOME/.bash_aliases" ]]; then
-        remove_delimited "$HOME/.bash_aliases" "cli-tools"
-      fi
-      # Note: We don't remove the actual binaries as they might be needed by other tools
+    homebrew)
+      remove_delimited "$HOME/.bashrc" "homebrew"
+      # Note: Homebrew itself remains in /home/linuxbrew/.linuxbrew
+      # To fully remove, run: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh)"
       ;;
-    kubernetes)
-      remove_delimited "$HOME/.bashrc" "kubectl"
-      remove_delimited "$HOME/.bashrc" "helm"
-      if [[ -f "$HOME/.bash_aliases" ]]; then
-        remove_delimited "$HOME/.bash_aliases" "kubernetes"
-      fi
-      # Note: Binaries remain in /usr/local/bin
-      ;;
-    cloud)
-      remove_delimited "$HOME/.bashrc" "aws-cli"
-      remove_delimited "$HOME/.bashrc" "azure-cli"
-      remove_delimited "$HOME/.bashrc" "google-cloud-sdk"
-      if [[ -f "$HOME/.bash_aliases" ]]; then
-        remove_delimited "$HOME/.bash_aliases" "cloud"
-      fi
-      # Note: AWS, Azure, and Google Cloud CLIs remain installed
-      ;;
+  esac
   esac
   
   # Restore backup if available
