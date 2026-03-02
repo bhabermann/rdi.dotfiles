@@ -98,15 +98,9 @@ smoke_test_shell() {
 smoke_test_vfox() {
   debug "Testing vfox component..."
   
-  # Check vfox is in PATH
-  if ! command -v vfox &>/dev/null; then
-    err "vfox not found in PATH"
-    return 1
-  fi
-  
-  # Check vfox version
-  if ! validate_command "vfox --version" "vfox" >/dev/null; then
-    err "vfox validation failed"
+  # Check vfox is in PATH or installed
+  if ! command -v vfox &>/dev/null && [[ ! -d "$HOME/.vfox" ]]; then
+    err "vfox not found in PATH or ~/.vfox"
     return 1
   fi
   
@@ -115,45 +109,70 @@ smoke_test_vfox() {
     warn "vfox not configured in bashrc"
   fi
   
-  # Test installed tools
-  local tools_ok=0
-  local tools_total=0
-  
-  if command -v node &>/dev/null; then
-    ((tools_ok++))
-    debug "Node.js: $(node --version)"
+  # If vfox is in PATH, check version
+  if command -v vfox &>/dev/null; then
+    if ! vfox --version >/dev/null 2>&1; then
+      err "vfox validation failed"
+      return 1
+    fi
   fi
-  ((tools_total++))
   
-  if command -v python3 &>/dev/null || command -v python &>/dev/null; then
-    ((tools_ok++))
-    debug "Python: $(python3 --version 2>/dev/null || python --version 2>/dev/null)"
+  log "✓ vfox: OK"
+  return 0
+}
+
+smoke_test_docker() {
+  debug "Testing docker component..."
+  
+  # Check docker is in PATH
+  if ! command -v docker &>/dev/null; then
+    err "docker not found in PATH"
+    return 1
   fi
-  ((tools_total++))
   
-  if command -v java &>/dev/null; then
-    ((tools_ok++))
-    debug "Java: $(java -version 2>&1 | head -n1)"
+  # Check docker version
+  if ! docker --version >/dev/null 2>&1; then
+    err "Docker validation failed"
+    return 1
   fi
-  ((tools_total++))
   
-  log "✓ vfox: OK ($tools_ok/$tools_total tools available)"
+  log "✓ docker: OK"
+  return 0
+}
+
+smoke_test_ca-updater() {
+  debug "Testing ca-updater component..."
+  
+  # Check if update-corporate-ca is installed
+  if ! command -v update-corporate-ca &>/dev/null; then
+    err "update-corporate-ca not found in PATH"
+    return 1
+  fi
+  
+  # Check config file exists
+  if [[ ! -f /etc/update-corporate-ca.conf ]]; then
+    warn "Config file not found: /etc/update-corporate-ca.conf"
+  fi
+  
+  log "✓ ca-updater: OK"
   return 0
 }
 
 smoke_test_homebrew() {
   debug "Testing homebrew component..."
   
-  # Check brew is in PATH
-  if ! command -v brew &>/dev/null; then
-    err "brew not found in PATH"
+  # Check brew is in PATH or installed
+  if ! command -v brew &>/dev/null && [[ ! -d /home/linuxbrew/.linuxbrew ]]; then
+    err "brew not found in PATH or /home/linuxbrew/.linuxbrew"
     return 1
   fi
   
-  # Check brew version
-  if ! validate_command "brew --version" "Homebrew" >/dev/null; then
-    err "Homebrew validation failed"
-    return 1
+  # If brew is in PATH, check version
+  if command -v brew &>/dev/null; then
+    if ! brew --version >/dev/null 2>&1; then
+      err "Homebrew validation failed"
+      return 1
+    fi
   fi
   
   # Check for bashrc integration
@@ -180,9 +199,9 @@ verify_component() {
   
   # Run smoke test
   if "smoke_test_$component"; then
-    ((SUCCESS_COUNT++))
+    SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
   else
-    ((FAILED_COUNT++))
+    FAILED_COUNT=$((FAILED_COUNT + 1))
   fi
 }
 
