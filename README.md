@@ -1,6 +1,6 @@
 # WSL Dotfiles
 
-Essential-only dotfiles management system for WSL (Windows Subsystem for Linux) with Docker, Git, Shell, Homebrew, and vfox version manager.
+Essential-only dotfiles management system for WSL (Windows Subsystem for Linux) with Docker, Git, Shell, Homebrew, CLI tools (zoxide, fzf, ripgrep, bat), and vfox version manager.
 
 ## ✨ Features
 
@@ -37,7 +37,14 @@ All components are installed automatically:
 - Integrated into shell environment
 - Enables easy package installation
 
-### 🔧 vfox Version Manager
+### �️ CLI Tools
+- **zoxide**: Smarter `cd` command with frecency-based directory jumping
+- **fzf**: Fuzzy finder for files, history, and more
+- **ripgrep**: Blazing fast `grep` replacement
+- **bat**: `cat` with syntax highlighting and line numbers
+- Installed via Homebrew
+
+### �🔧 vfox Version Manager
 - Universal version manager for Node.js, Python, Go, .NET, and Java
 - Replaces nvm, pyenv, sdkman, and more
 - Configured via `dev-tools/config/versions.yaml`
@@ -48,7 +55,8 @@ All components are installed automatically:
 docker ────┐
 ca-updater ┤ (parallel)
 git ───────┤
-shell ─────┴─→ homebrew ─→ vfox
+           └─→ shell ─→ homebrew ─┬─→ cli-tools
+                                  └─→ vfox
 ```
 
 ## Prerequisites
@@ -113,22 +121,22 @@ cd ~/.dotfiles
 ```
 
 The installer will:
-1. Auto-import existing installations
-2. Install Docker Engine and Windows wrappers
-3. Install CA certificate updater
-4. Configure Git with aliases
-5. Set up shell environment
-6. Install Homebrew
-7. Install and configure vfox
-8. Backup existing configs
-9. Validate with smoke tests
+1. Install required Ubuntu dependencies
+2. Auto-import existing installations
+3. Install Docker Engine and Windows wrappers
+4. Install CA certificate updater
+5. Configure Git with aliases
+6. Set up shell environment
+7. Install Homebrew
+8. Install CLI tools (zoxide, fzf, ripgrep, bat)
+9. Install and configure vfox (Node.js, Python, Go, .NET, Java)
 
 ### Options
 
 ```bash
-./setup install            # Standard installation
+./setup                    # Install all components (default)
+./setup install            # Same as above
 ./setup install --verbose  # Detailed output
-./setup                    # Full setup (install + verify)
 ```
 
 ## 🔧 Management Commands
@@ -173,7 +181,6 @@ source ~/.bashrc
 cd ~/.dotfiles
 git pull
 ./setup update
-./setup verify
 ```
 
 ## Usage
@@ -213,6 +220,27 @@ You can also run the Docker installer directly with additional options:
 
 # Show help
 ./docker-wsl/install/install-docker-wsl-and-windows-wrapper.sh --help
+```
+
+### CLI Tools
+
+```bash
+# Smart directory jumping (learns from your cd habits)
+z projects        # Jump to most frequent/recent match
+zi                # Interactive directory selection with fzf
+
+# Fuzzy finder
+fzf               # Interactive file finder
+Ctrl+R            # Fuzzy search command history
+Ctrl+T            # Fuzzy file picker
+
+# Fast grep
+rg "pattern"      # Search files recursively
+rg -t py "import" # Search only Python files
+
+# Better cat
+bat file.sh       # Syntax-highlighted file viewer
+bat --diff a b    # Side-by-side diff
 ```
 
 ### Corporate CA Certificates
@@ -339,6 +367,7 @@ source ~/.bashrc
 ├── git/                          # Git config
 ├── shell/                        # Shell environment
 ├── homebrew/                     # Homebrew installer
+├── cli-tools/                    # CLI tools (zoxide, fzf, ripgrep, bat)
 ├── dev-tools/                    # vfox installer + versions.yaml
 ├── Dockerfile.test               # Docker test harness
 └── test-cycle.sh                 # Automated test script
