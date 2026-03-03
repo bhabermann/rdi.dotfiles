@@ -1,7 +1,11 @@
 tools:
   nodejs:
-    version: "20.11.0"
+    version: "24"
   python:
-    version: "3.12.1"
-  java:
     version: "latest"
+  golang:
+    version: "latest"
+  dotnet:
+    version: "10"
+  java:
+    version: "25-open"
