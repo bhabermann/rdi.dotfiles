@@ -34,7 +34,7 @@ Options:
   --force              (uninstall only) Skip dependency checks
 
 Examples:
-  setup                      # Install and verify (full onboarding)
+  setup                      # Install essential components (default)
   setup install              # Install essential components
   setup verify               # Run smoke tests
   setup update               # Update all components
@@ -97,15 +97,9 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Default action: install + verify (full onboarding)
+# Default action: install
 if [[ -z "$ACTION" ]]; then
-  log "Running full dotfiles setup (install + verify)..."
-  echo ""
   action_install
-  echo ""
-  echo "==========================================="
-  echo ""
-  action_verify
   exit 0
 fi
 
