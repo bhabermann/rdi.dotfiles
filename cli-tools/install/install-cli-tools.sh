@@ -3,12 +3,12 @@ set -euo pipefail
 
 COMPONENT="cli-tools"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 # Source common functions
-# shellcheck source=../../../lib/common.sh
+# shellcheck source=../../lib/common.sh
 source "$ROOT_DIR/lib/common.sh"
-# shellcheck source=../../../lib/dependencies.sh
+# shellcheck source=../../lib/dependencies.sh
 source "$ROOT_DIR/lib/dependencies.sh"
 
 VERBOSE=0
