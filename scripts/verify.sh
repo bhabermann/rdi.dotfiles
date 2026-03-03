@@ -4,10 +4,11 @@ set -euo pipefail
 # Verify installed dotfiles components
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Source library functions
 # shellcheck source=lib/common.sh
-source "$SCRIPT_DIR/lib/common.sh"
+source "$REPO_ROOT/lib/common.sh"
 
 VERBOSE=0
 FAILED_COUNT=0

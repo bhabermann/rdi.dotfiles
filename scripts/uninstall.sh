@@ -4,12 +4,13 @@ set -euo pipefail
 # Uninstall dotfiles components
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Source library functions
 # shellcheck source=lib/common.sh
-source "$SCRIPT_DIR/lib/common.sh"
+source "$REPO_ROOT/lib/common.sh"
 # shellcheck source=lib/dependencies.sh
-source "$SCRIPT_DIR/lib/dependencies.sh"
+source "$REPO_ROOT/lib/dependencies.sh"
 
 VERBOSE=0
 FORCE=0
@@ -78,7 +79,6 @@ uninstall_component() {
       # To fully remove, run: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh)"
       ;;
   esac
-  esac
   
   # Restore backup if available
   if [[ -n "$backup_dir" ]] && [[ -d "$DOTFILES_BACKUP/$backup_dir" ]]; then
@@ -106,43 +106,51 @@ uninstall_component() {
 }
 
 interactive_select() {
-  log "Installed components:"
-  echo ""
-  
+  echo "Installed components:" >&2
+  echo "" >&2
   local components
   components=$(jq -r 'keys[]' "$DOTFILES_INSTALLED")
-  
   local -a component_list=()
   local index=1
-  
   for component in $components; do
     local status version
     status=$(read_component_status "$component")
     version=$(jq -r --arg name "$component" '.[$name].version // "unknown"' "$DOTFILES_INSTALLED")
-    
-    printf "  %d) %s (v%s, status: %s)\n" "$index" "$component" "$version" "$status"
+    printf "  %d) %s (v%s, status: %s)\n" "$index" "$component" "$version" "$status" >&2
     component_list+=("$component")
     ((index++))
   done
-  
-  echo ""
-  read -p "Select components to uninstall (e.g., 1 3 4 or 'all'): " -r selection
-  
-  local -a selected=()
-  
-  if [[ "$selection" == "all" ]]; then
-    selected=("${component_list[@]}")
-  else
+  echo "" >&2
+  local selected=""
+  while [[ -z "$selected" ]]; do
+    local selection=""
+    if [[ -t 0 ]]; then
+      # Interactive terminal
+      read -p "Select components to uninstall (e.g., 1 3 4 or 'all'): " -r selection
+    else
+      # Non-interactive (pipe or redirect)
+      read -r selection || selection=""
+    fi
+    if [[ "$selection" == "all" ]]; then
+      selected="${component_list[*]}"
+      break
+    fi
+    local -a chosen=()
     for num in $selection; do
       if [[ "$num" =~ ^[0-9]+$ ]] && [[ $num -ge 1 ]] && [[ $num -le ${#component_list[@]} ]]; then
-        selected+=("${component_list[$num-1]}")
+        chosen+=("${component_list[$num-1]}")
       else
         warn "Invalid selection: $num"
       fi
     done
-  fi
-  
-  echo "${selected[@]}"
+    if [[ ${#chosen[@]} -gt 0 ]]; then
+      selected="${chosen[*]}"
+    else
+      warn "No valid components selected. Please try again."
+    fi
+  done
+  # Only print component names to stdout, everything else to stderr
+  echo "$selected"
 }
 
 main() {

@@ -5,7 +5,8 @@
 *.zsh text eol=lf
 *.yaml text eol=lf
 
-install.sh text eol=lf
+scripts/*.sh text eol=lf
+setup text eol=lf
 
 # Component directories
 lib/** text eol=lf

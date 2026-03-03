@@ -1,0 +1,131 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$SCRIPT_DIR"
+
+# Source library functions
+source "$SCRIPT_DIR/lib/common.sh"
+source "$SCRIPT_DIR/lib/dependencies.sh"
+source "$SCRIPT_DIR/lib/rollback.sh"
+source "$SCRIPT_DIR/lib/import.sh"
+
+# Source action scripts
+source "$SCRIPT_DIR/lib/actions/install.sh"
+source "$SCRIPT_DIR/lib/actions/verify.sh"
+source "$SCRIPT_DIR/lib/actions/update.sh"
+source "$SCRIPT_DIR/lib/actions/uninstall.sh"
+
+export VERBOSE=0
+
+usage() {
+  cat <<'EOF'
+Usage: setup [COMMAND] [OPTIONS] [ARGS]
+
+Commands:
+  install              Install all essential dotfiles components (default)
+  verify               Verify all installed components
+  update               Update all installed components
+  uninstall [COMP...]  Uninstall specified components (interactive if none)
+  help                 Show this help message
+
+Options:
+  --verbose            Show detailed debug output
+  --force              (uninstall only) Skip dependency checks
+
+Examples:
+  setup                      # Install and verify (full onboarding)
+  setup install              # Install essential components
+  setup verify               # Run smoke tests
+  setup update               # Update all components
+  setup uninstall            # Interactive uninstall
+  setup uninstall vfox       # Uninstall specific component
+  setup --verbose install    # Verbose installation
+
+Components:
+  Essential (installed by default):
+    - docker       Docker Engine with Windows wrappers
+    - ca-updater   Corporate CA certificate manager
+    - git          Git configuration and aliases
+    - shell        Bash environment and aliases
+    - homebrew     Homebrew package manager
+    - vfox         Version manager (Node.js, Python, Java)
+    - cli-tools    CLI tools (zoxide, fzf, ripgrep, bat)
+
+For more information, see README.md
+EOF
+}
+
+# Parse global options
+ACTION=""
+ACTION_ARGS=()
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --verbose)
+      VERBOSE=1
+      export VERBOSE
+      shift
+      ;;
+    --force)
+      FORCE=1
+      export FORCE
+      shift
+      ;;
+    help|--help|-h)
+      usage
+      exit 0
+      ;;
+    install|verify|update|uninstall)
+      ACTION="$1"
+      shift
+      # Remaining args are for the action
+      ACTION_ARGS=("$@")
+      break
+      ;;
+    *)
+      if [[ -z "$ACTION" ]]; then
+        err "Unknown command: $1"
+        echo ""
+        usage
+        exit 1
+      else
+        ACTION_ARGS+=("$1")
+        shift
+      fi
+      ;;
+  esac
+done
+
+# Default action: install + verify (full onboarding)
+if [[ -z "$ACTION" ]]; then
+  log "Running full dotfiles setup (install + verify)..."
+  echo ""
+  action_install
+  echo ""
+  echo "==========================================="
+  echo ""
+  action_verify
+  exit 0
+fi
+
+# Execute the requested action
+case "$ACTION" in
+  install)
+    action_install
+    ;;
+  verify)
+    action_verify
+    ;;
+  update)
+    action_update
+    ;;
+  uninstall)
+    action_uninstall "${ACTION_ARGS[@]}"
+    ;;
+  *)
+    err "Unknown action: $ACTION"
+    usage
+    exit 1
+    ;;
+esac

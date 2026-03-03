@@ -4,16 +4,17 @@ set -euo pipefail
 # Update installed dotfiles components
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Source library functions
 # shellcheck source=lib/common.sh
-source "$SCRIPT_DIR/lib/common.sh"
+source "$REPO_ROOT/lib/common.sh"
 # shellcheck source=lib/dependencies.sh
-source "$SCRIPT_DIR/lib/dependencies.sh"
+source "$REPO_ROOT/lib/dependencies.sh"
 # shellcheck source=lib/rollback.sh
-source "$SCRIPT_DIR/lib/rollback.sh"
+source "$REPO_ROOT/lib/rollback.sh"
 # shellcheck source=lib/import.sh
-source "$SCRIPT_DIR/lib/import.sh"
+source "$REPO_ROOT/lib/import.sh"
 
 VERBOSE=0
 LOG_ENABLED=0
@@ -114,7 +115,7 @@ main() {
     begin_transaction "$component"
     
     # Run the installer
-    local installer="$SCRIPT_DIR/$component/install/install-$component.sh"
+    local installer="$REPO_ROOT/$component/install/install-$component.sh"
     
     if [[ ! -f "$installer" ]]; then
       warn "Installer not found: $installer"
