@@ -95,7 +95,7 @@ else
 fi
 
 # Install essential components in dependency order
-COMPONENTS=("git" "shell" "homebrew" "vfox")
+COMPONENTS=("git" "shell" "homebrew" "cli-tools" "vfox")
 
 # Resolve dependencies
 ORDERED_COMPONENTS=($(resolve_dependencies "${COMPONENTS[@]}"))
