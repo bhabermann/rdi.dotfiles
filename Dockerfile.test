@@ -1,0 +1,44 @@
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Minimal base — mirrors a fresh WSL Ubuntu install
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    sudo \
+    curl \
+    ca-certificates \
+    git \
+    bash \
+    && rm -rf /var/lib/apt/lists/*
+
+# Import corporate CA certificates if present on the host
+# To inject a corporate CA, pass it as a build arg:
+#   docker build --build-arg CORP_CA="$(cat /path/to/ca.crt)" ...
+ARG CORP_CA=""
+RUN if [ -n "$CORP_CA" ]; then \
+      echo "$CORP_CA" > /usr/local/share/ca-certificates/corporate-ca.crt && \
+      update-ca-certificates; \
+    fi
+
+# Create a non-root user (simulates WSL user)
+RUN useradd -m -s /bin/bash testuser \
+    && echo "testuser ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+USER testuser
+WORKDIR /home/testuser
+
+# Create a minimal .bashrc so shell installer can append to it
+RUN touch /home/testuser/.bashrc
+
+# Copy the dotfiles repo
+COPY --chown=testuser:testuser . /home/testuser/.dotfiles
+
+WORKDIR /home/testuser/.dotfiles
+
+# Pre-seed the tracking file so docker/ca-updater are skipped
+# (they require WSL-specific features not available in a plain Docker container)
+RUN echo '{"docker":{"installed_at":"pre-seeded","version":"skip","status":"ok","backup_dir":""},"ca-updater":{"installed_at":"pre-seeded","version":"skip","status":"ok","backup_dir":""}}' \
+    > /home/testuser/.dotfiles-installed
+
+# Default: run the full install
+CMD ["bash", "-c", "./setup install --verbose"]
