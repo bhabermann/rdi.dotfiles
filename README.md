@@ -38,12 +38,9 @@ All components are installed automatically:
 - Enables easy package installation
 
 ### 🔧 vfox Version Manager
-- Universal version manager for Node.js, Python, Java
-- Replaces nvm, pyenv, sdkman
-- Configured versions:
-  - Node.js: 20.11.0
-  - Python: 3.12.1
-  - Java: latest
+- Universal version manager for Node.js, Python, Go, .NET, and Java
+- Replaces nvm, pyenv, sdkman, and more
+- Configured via `dev-tools/config/versions.yaml`
 
 ## 📊 Dependency Order
 
@@ -56,17 +53,63 @@ shell ─────┴─→ homebrew ─→ vfox
 
 ## Prerequisites
 
-- WSL 2 with Ubuntu
-- Windows 10/11
+- Windows 10 (build 19041+) or Windows 11
 - Sudo privileges
 - Internet connectivity
+
+## 🖥️ Setting Up WSL 2 with Ubuntu
+
+If you don't have WSL 2 installed yet, follow these steps from **PowerShell (Run as Administrator)**:
+
+### 1. Enable WSL and install Ubuntu
+
+```powershell
+# Install WSL 2 with Ubuntu as the default distribution (one command does it all)
+wsl --install -d Ubuntu
+```
+
+This command will:
+- Enable the WSL and Virtual Machine Platform features
+- Download and install the latest Linux kernel
+- Set WSL 2 as the default version
+- Download and install the Ubuntu distribution
+
+> **Note:** A reboot may be required after this step. After rebooting, Ubuntu will launch automatically to complete the setup (create user and password).
+
+### 2. Verify the installation
+
+```powershell
+# Confirm WSL 2 is running
+wsl --list --verbose
+```
+
+You should see output like:
+
+```
+  NAME      STATE           VERSION
+* Ubuntu    Running         2
+```
+
+### 3. (Optional) Set Ubuntu as default if needed
+
+```powershell
+wsl --set-default Ubuntu
+```
+
+### 4. Enter your WSL environment
+
+```powershell
+wsl
+```
+
+You are now inside Ubuntu on WSL 2 and ready to install the dotfiles.
 
 ## Installation
 
 ```bash
 git clone <REPO_URL> ~/.dotfiles
 cd ~/.dotfiles
-./install.sh
+./setup install
 ```
 
 The installer will:
@@ -83,27 +126,28 @@ The installer will:
 ### Options
 
 ```bash
-./install.sh            # Standard installation
-./install.sh --verbose  # Detailed output
+./setup install            # Standard installation
+./setup install --verbose  # Detailed output
+./setup                    # Full setup (install + verify)
 ```
 
 ## 🔧 Management Commands
 
 ### Verify Installation
 ```bash
-./verify.sh              # Run smoke tests
-./verify.sh --verbose    # Detailed output
+./setup verify              # Run smoke tests
+./setup verify --verbose    # Detailed output
 ```
 
 ### Update Components
 ```bash
-./update.sh              # Update all components
+./setup update              # Update all components
 ```
 
 ### Uninstall Components
 ```bash
-./uninstall.sh                # Interactive mode
-./uninstall.sh vfox homebrew  # Specific components
+./setup uninstall                # Interactive mode
+./setup uninstall vfox homebrew  # Specific components
 ```
 
 ## 📝 Configuration
@@ -120,8 +164,7 @@ Edit `config/versions.yaml` in component directories:
 ### First-Time Setup
 ```bash
 cd ~/.dotfiles
-./install.sh
-./verify.sh
+./setup
 source ~/.bashrc
 ```
 
@@ -129,8 +172,8 @@ source ~/.bashrc
 ```bash
 cd ~/.dotfiles
 git pull
-./update.sh
-./verify.sh
+./setup update
+./setup verify
 ```
 
 ## Usage
@@ -279,21 +322,26 @@ source ~/.bashrc
 
 ```
 .dotfiles/
-├── install.sh                    # Main installer
-├── verify.sh                     # Smoke tests
-├── update.sh                     # Update components
-├── uninstall.sh                  # Remove components
+├── setup                         # Main entrypoint
+├── scripts/                      # Core scripts
+│   ├── install.sh                # Main installer
+│   ├── verify.sh                 # Smoke tests
+│   ├── update.sh                 # Update components
+│   └── uninstall.sh              # Remove components
 ├── lib/                          # Shared libraries
 │   ├── common.sh                 # Utilities
 │   ├── dependencies.sh           # DAG management
 │   ├── rollback.sh               # Transactions
-│   └── import.sh                 # Auto-import
+│   ├── import.sh                 # Auto-import
+│   └── actions/                  # Action wrappers for setup
 ├── docker-wsl/                   # Docker installer
 ├── update-corporate-ca/          # CA management
 ├── git/                          # Git config
 ├── shell/                        # Shell environment
 ├── homebrew/                     # Homebrew installer
-└── dev-tools/                    # vfox installer
+├── dev-tools/                    # vfox installer + versions.yaml
+├── Dockerfile.test               # Docker test harness
+└── test-cycle.sh                 # Automated test script
 ```
 
 ## License
