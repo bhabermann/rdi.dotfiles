@@ -18,6 +18,20 @@ warn()  { printf "⚠ WARNING: %s\n" "$*" >&2; }
 err()   { printf "✗ ERROR: %s\n" "$*" >&2; }
 debug() { [[ "$VERBOSE" -eq 1 ]] && printf "  [DEBUG] %s\n" "$*" || true; }
 
+# Detect WSL environment.
+is_wsl_env() {
+  [[ -n "${WSL_INTEROP:-}" ]] || [[ -e /proc/sys/fs/binfmt_misc/WSLInterop ]]
+}
+
+# True when a component was intentionally skipped in non-WSL installs.
+is_non_wsl_skip_marker() {
+  local component="$1"
+  local version
+
+  version="$(read_component_version "$component")"
+  [[ "$version" == "skip-non-wsl" ]]
+}
+
 is_interactive_tty() {
   [[ -t 1 && -t 2 ]]
 }
@@ -250,6 +264,18 @@ read_component_status() {
   fi
   
   jq -r --arg name "$name" '.[$name].status // "null"' "$DOTFILES_INSTALLED"
+}
+
+# Read component version from JSON
+read_component_version() {
+  local name="$1"
+
+  if [[ ! -f "$DOTFILES_INSTALLED" ]]; then
+    echo ""
+    return
+  fi
+
+  jq -r --arg name "$name" '.[$name].version // ""' "$DOTFILES_INSTALLED"
 }
 
 # Check if component is already installed
