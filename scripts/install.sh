@@ -10,8 +10,8 @@ source "$REPO_ROOT/lib/dependencies.sh"
 source "$REPO_ROOT/lib/rollback.sh"
 source "$REPO_ROOT/lib/import.sh"
 
-export VERBOSE=0
-export LOG_ENABLED=0
+export VERBOSE="${VERBOSE:-0}"
+export LOG_ENABLED="${LOG_ENABLED:-0}"
 
 # Parse arguments
 for arg in "$@"; do
@@ -51,13 +51,15 @@ EOF
 done
 
 # Step 0: Install all required Ubuntu dependencies first
+progress_init 12
+progress_step "Installing required Ubuntu dependencies"
 log "Installing required Ubuntu dependencies..."
 if [[ "$VERBOSE" -eq 1 ]]; then
-  sudo apt-get update
-  sudo apt-get install -y jq curl ca-certificates git bash sudo build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev
+  progress_run "Running apt-get update" sudo apt-get update
+  progress_run "Installing apt dependencies" sudo apt-get install -y jq curl ca-certificates git bash sudo build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev
 else
-  sudo apt-get update -qq
-  sudo apt-get install -y -qq jq curl ca-certificates git bash sudo build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev >/dev/null 2>&1
+  progress_run "Running apt-get update" sudo apt-get update -qq
+  progress_run "Installing apt dependencies" sudo apt-get install -y -qq jq curl ca-certificates git bash sudo build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev
 fi
 log "All Ubuntu dependencies installed."
 
@@ -66,24 +68,27 @@ debug "Verbose mode enabled"
 debug "File logging enabled: $LOG_ENABLED"
 
 # Ensure jq is available for JSON tracking
+progress_step "Validating jq dependency"
 ensure_jq
 
 # Auto-import existing installations
+progress_step "Importing existing installations"
 auto_import
 
 # Detect dependency cycles
+progress_step "Checking dependency graph for cycles"
 detect_cycles || { err "Dependency cycle detected!"; exit 1; }
 
 log "Installing essential components..."
 
 # Install Docker
+progress_step "Installing component: docker"
 if ! is_installed "docker"; then
   begin_transaction "docker"
   docker_args=()
   [[ "$VERBOSE" -eq 1 ]] && docker_args+=("--verbose")
   if "$REPO_ROOT/docker-wsl/install/install-docker-wsl-and-windows-wrapper.sh" "${docker_args[@]}"; then
-    track_component "docker" "$(docker --version 2>/dev/null | awk '{print $3}' | tr -d ',')" "ok"
-    commit_transaction "docker"
+    commit_transaction "docker" "$(get_installed_version "docker")"
   else
     rollback_transaction "docker"
     err "Installation failed: docker"
@@ -94,13 +99,13 @@ else
 fi
 
 # Install Corporate CA updater
+progress_step "Installing component: ca-updater"
 if ! is_installed "ca-updater"; then
   begin_transaction "ca-updater"
   ca_args=()
   [[ "$VERBOSE" -eq 1 ]] && ca_args+=("--verbose")
   if "$REPO_ROOT/update-corporate-ca/install/install-update-corporate-ca.sh" "${ca_args[@]}"; then
-    track_component "ca-updater" "1.0.0" "ok"
-    commit_transaction "ca-updater"
+    commit_transaction "ca-updater" "$(get_installed_version "ca-updater")"
   else
     rollback_transaction "ca-updater"
     err "Installation failed: ca-updater"
@@ -117,6 +122,7 @@ COMPONENTS=("git" "shell" "homebrew" "cli-tools" "vfox")
 ORDERED_COMPONENTS=($(resolve_dependencies "${COMPONENTS[@]}"))
 
 for component in "${ORDERED_COMPONENTS[@]}"; do
+  progress_step "Installing component: $component"
   if is_installed "$component"; then
     log "Already installed: $component"
     # Run installer anyway to ensure configuration is up to date
@@ -169,7 +175,7 @@ for component in "${ORDERED_COMPONENTS[@]}"; do
   [[ "$VERBOSE" -eq 1 ]] && component_args+=("--verbose")
   if "$installer_path" "${component_args[@]}"; then
     [[ "$component" == "homebrew" ]] && sync_homebrew_path
-    commit_transaction "$component"
+    commit_transaction "$component" "$(get_installed_version "$component")"
   else
     err "Installation failed: $component"
     rollback_transaction "$component"
@@ -178,6 +184,7 @@ for component in "${ORDERED_COMPONENTS[@]}"; do
   fi
 done
 
+progress_step "Finalizing installation"
 log "✓ All essential components installed successfully!"
 log ""
 log "Sourcing ~/.bashrc to apply changes..."

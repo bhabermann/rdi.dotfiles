@@ -80,6 +80,22 @@ get_installed_version() {
         version=$(brew --version 2>/dev/null | head -n1 | awk '{print $2}')
       fi
       ;;
+    docker)
+      if command -v docker &>/dev/null; then
+        version=$(docker --version 2>/dev/null | awk '{print $3}' | tr -d ',')
+      fi
+      ;;
+    ca-updater)
+      if command -v update-corporate-ca &>/dev/null; then
+        version=$(update-corporate-ca --version 2>/dev/null | grep -oE '[0-9]+(\.[0-9]+){0,2}' | head -n1 || true)
+      fi
+      [[ -z "$version" ]] && version="1.0.0"
+      ;;
+    cli-tools)
+      if command -v zoxide &>/dev/null || command -v fzf &>/dev/null || command -v rg &>/dev/null || command -v bat &>/dev/null; then
+        version="managed"
+      fi
+      ;;
     vfox)
       if command -v vfox &>/dev/null; then
         version=$(vfox --version 2>/dev/null | grep -oP '\d+\.\d+\.\d+' | head -n1)

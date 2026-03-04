@@ -109,11 +109,11 @@ rm -rf "$HOME/.dotfiles"
 git clone --branch "{0}" --single-branch "{1}" "$HOME/.dotfiles"
 cd "$HOME/.dotfiles"
 if ./setup --help | grep -q -- "--log"; then
-  ./setup --verbose --log install
+  ./setup install
 else
-  ./setup --verbose install
+  ./setup install
 fi
-./setup --verbose verify
+./setup verify
 echo "Logs directory: $HOME/.dotfiles-logs"
 '
 '@ -f $Branch, $RepoUrl

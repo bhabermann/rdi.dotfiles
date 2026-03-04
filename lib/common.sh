@@ -8,12 +8,86 @@ DOTFILES_LOGS="$HOME/.dotfiles-logs"
 
 LOG_ENABLED="${LOG_ENABLED:-0}"
 CURRENT_LOG_FILE=""
+PROGRESS_TOTAL=0
+PROGRESS_CURRENT=0
+PROGRESS_SPINNER_PID=""
 
 # Logging functions (consistent with existing codebase)
 log()   { printf "✓ %s\n" "$*"; }
 warn()  { printf "⚠ WARNING: %s\n" "$*" >&2; }
 err()   { printf "✗ ERROR: %s\n" "$*" >&2; }
 debug() { [[ "$VERBOSE" -eq 1 ]] && printf "  [DEBUG] %s\n" "$*" || true; }
+
+is_interactive_tty() {
+  [[ -t 1 && -t 2 ]]
+}
+
+progress_init() {
+  local total="${1:-0}"
+  PROGRESS_TOTAL="$total"
+  PROGRESS_CURRENT=0
+}
+
+progress_step() {
+  local message="$1"
+  if [[ "$PROGRESS_TOTAL" -gt 0 ]]; then
+    PROGRESS_CURRENT=$((PROGRESS_CURRENT + 1))
+    printf "[%d/%d] %s\n" "$PROGRESS_CURRENT" "$PROGRESS_TOTAL" "$message"
+  else
+    printf "[*] %s\n" "$message"
+  fi
+}
+
+start_progress_spinner() {
+  local message="$1"
+
+  if ! is_interactive_tty; then
+    return 0
+  fi
+
+  if [[ "${VERBOSE:-0}" -eq 1 ]]; then
+    return 0
+  fi
+
+  if [[ -n "$PROGRESS_SPINNER_PID" ]]; then
+    return 0
+  fi
+
+  (
+    local frames='-\|/'
+    local i=0
+    while true; do
+      printf "\r[%d/%d] %s %s" "$PROGRESS_CURRENT" "$PROGRESS_TOTAL" "$message" "${frames:i%4:1}" >&2
+      i=$((i + 1))
+      sleep 0.1
+    done
+  ) &
+  PROGRESS_SPINNER_PID=$!
+}
+
+stop_progress_spinner() {
+  if [[ -z "$PROGRESS_SPINNER_PID" ]]; then
+    return 0
+  fi
+
+  kill "$PROGRESS_SPINNER_PID" >/dev/null 2>&1 || true
+  wait "$PROGRESS_SPINNER_PID" >/dev/null 2>&1 || true
+  PROGRESS_SPINNER_PID=""
+  printf "\r\033[K" >&2
+}
+
+progress_run() {
+  local message="$1"
+  shift
+
+  start_progress_spinner "$message"
+  if "$@"; then
+    stop_progress_spinner
+    return 0
+  fi
+  stop_progress_spinner
+  return 1
+}
 
 # Setup logging for a component
 setup_logging() {

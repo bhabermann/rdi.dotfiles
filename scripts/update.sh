@@ -16,8 +16,8 @@ source "$REPO_ROOT/lib/rollback.sh"
 # shellcheck source=lib/import.sh
 source "$REPO_ROOT/lib/import.sh"
 
-VERBOSE=0
-LOG_ENABLED=0
+VERBOSE="${VERBOSE:-0}"
+LOG_ENABLED="${LOG_ENABLED:-0}"
 
 usage() {
   cat <<'EOF'
@@ -98,9 +98,11 @@ main() {
   update_order=($(resolve_dependencies "${updateable_components[@]}"))
   
   debug "Update order: ${update_order[*]}"
+  progress_init $((1 + ${#update_order[@]}))
   
   # Update each component
   for component in "${update_order[@]}"; do
+    progress_step "Updating component: $component"
     local status
     status=$(read_component_status "$component")
     local component_dir="$component"
@@ -163,6 +165,7 @@ main() {
   done
   
   # Cleanup old backups
+  progress_step "Cleaning up old backups"
   log "\nCleaning up old backups..."
   cleanup_old_backups "all" 10
   

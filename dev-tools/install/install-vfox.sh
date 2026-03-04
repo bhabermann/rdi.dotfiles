@@ -15,6 +15,36 @@ VERBOSE=0
 VERSIONS_YAML="$SCRIPT_DIR/../config/versions.yaml"
 VFOX_DIR="$HOME/.vfox"
 
+detect_shell_name() {
+  local shell_name
+  shell_name="$(basename "${SHELL:-bash}")"
+  case "$shell_name" in
+    zsh) echo "zsh" ;;
+    *) echo "bash" ;;
+  esac
+}
+
+activate_vfox_current_shell() {
+  local shell_name="$1"
+
+  export PATH="$HOME/.vfox/bin:$PATH"
+  if command -v vfox &>/dev/null; then
+    eval "$(vfox activate "$shell_name" 2>/dev/null)" || eval "$(vfox activate bash 2>/dev/null)" || true
+  fi
+  export PATH="$HOME/.version-fox/shims:$PATH"
+}
+
+get_vfox_init_snippet() {
+  local shell_name="$1"
+  cat <<EOF
+# Initialize vfox
+export PATH="\$HOME/.vfox/bin:\$PATH"
+if command -v vfox >/dev/null 2>&1; then
+  eval "\$(vfox activate $shell_name 2>/dev/null || vfox activate bash 2>/dev/null)"
+fi
+EOF
+}
+
 usage() {
   cat <<'EOF'
 Usage:
@@ -55,17 +85,22 @@ install_vfox() {
 
 configure_shell() {
   debug "Configuring vfox in shell..."
-  
-  local vfox_init='# Initialize vfox
-export PATH="$HOME/.vfox/bin:$PATH"
-eval "$(vfox activate bash)"'
-  
+
+  local shell_name
+  shell_name="$(detect_shell_name)"
+  local vfox_init
+  vfox_init="$(get_vfox_init_snippet "$shell_name")"
+
   append_delimited "$HOME/.bashrc" "$vfox_init" "vfox"
-  
+
+  if [[ -f "$HOME/.zshrc" ]]; then
+    append_delimited "$HOME/.zshrc" "$vfox_init" "vfox"
+    log "vfox configured in .zshrc"
+  fi
+
   # Source it in current session
-  export PATH="$HOME/.vfox/bin:$PATH"
-  eval "$(vfox activate bash)" || true
-  
+  activate_vfox_current_shell "$shell_name"
+
   log "vfox configured in .bashrc"
 }
 
@@ -198,9 +233,7 @@ validate_installation() {
   debug "Validating tool installations..."
 
   # Re-activate vfox shims so binaries are on PATH in this session
-  eval "$(vfox activate bash 2>/dev/null)" || true
-  # Also add the vfox internal current bin to PATH as a fallback
-  export PATH="$HOME/.version-fox/shims:$PATH"
+  activate_vfox_current_shell "$(detect_shell_name)"
 
   local failed=0
   local installed_tools=()

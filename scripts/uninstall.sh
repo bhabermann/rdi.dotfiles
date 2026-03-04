@@ -12,7 +12,7 @@ source "$REPO_ROOT/lib/common.sh"
 # shellcheck source=lib/dependencies.sh
 source "$REPO_ROOT/lib/dependencies.sh"
 
-VERBOSE=0
+VERBOSE="${VERBOSE:-0}"
 FORCE=0
 
 usage() {
@@ -68,6 +68,9 @@ uninstall_component() {
       ;;
     vfox)
       remove_delimited "$HOME/.bashrc" "vfox"
+      if [[ -f "$HOME/.zshrc" ]]; then
+        remove_delimited "$HOME/.zshrc" "vfox"
+      fi
       if [[ -d "$HOME/.vfox" ]]; then
         debug "Removing vfox directory"
         rm -rf "$HOME/.vfox"
@@ -260,13 +263,17 @@ main() {
   for ((i=${#uninstall_order[@]}-1; i>=0; i--)); do
     reversed+=("${uninstall_order[$i]}")
   done
+
+  progress_init $((1 + ${#reversed[@]}))
   
   # Uninstall each component
   for component in "${reversed[@]}"; do
+    progress_step "Uninstalling component: $component"
     uninstall_component "$component"
   done
   
   # Cleanup old backups
+  progress_step "Cleaning up old backups"
   cleanup_old_backups "all" 10
   
   log "\n✨ Uninstall complete!"

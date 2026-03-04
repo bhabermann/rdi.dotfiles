@@ -8,4 +8,4 @@ tools:
   dotnet:
     version: "10"
   java:
-    version: "25-open"
+    version: "21-tem"

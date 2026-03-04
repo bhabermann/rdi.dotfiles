@@ -10,7 +10,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 # shellcheck source=lib/common.sh
 source "$REPO_ROOT/lib/common.sh"
 
-VERBOSE=0
+VERBOSE="${VERBOSE:-0}"
 FAILED_COUNT=0
 SUCCESS_COUNT=0
 
@@ -105,9 +105,16 @@ smoke_test_vfox() {
     return 1
   fi
   
-  # Check for bashrc integration
-  if [[ -f "$HOME/.bashrc" ]] && ! grep -q "dotfiles:vfox" "$HOME/.bashrc"; then
-    warn "vfox not configured in bashrc"
+  # Check for shell integration (bash or zsh)
+  local vfox_shell_configured=0
+  if [[ -f "$HOME/.bashrc" ]] && grep -q "dotfiles:vfox" "$HOME/.bashrc"; then
+    vfox_shell_configured=1
+  fi
+  if [[ -f "$HOME/.zshrc" ]] && grep -q "dotfiles:vfox" "$HOME/.zshrc"; then
+    vfox_shell_configured=1
+  fi
+  if [[ "$vfox_shell_configured" -eq 0 ]]; then
+    warn "vfox not configured in bashrc or zshrc"
   fi
   
   # If vfox is in PATH, check version
@@ -249,15 +256,21 @@ main() {
   # Get all installed components
   local components
   components=$(jq -r 'keys[]' "$DOTFILES_INSTALLED")
+  local component_count
+  component_count=$(echo "$components" | sed '/^$/d' | wc -l | tr -d ' ')
+  progress_init $((2 + component_count))
+  progress_step "Loaded installation tracking metadata"
   
   # Verify each component
   for component in $components; do
+    progress_step "Verifying component: $component"
     local status
     status=$(read_component_status "$component")
     verify_component "$component" "$status"
   done
   
   # Report results
+  progress_step "Reporting verification summary"
   echo ""
   log "Verification complete:"
   log "  ✓ Success: $SUCCESS_COUNT component(s)"

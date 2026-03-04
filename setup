@@ -16,8 +16,8 @@ source "$SCRIPT_DIR/lib/actions/verify.sh"
 source "$SCRIPT_DIR/lib/actions/update.sh"
 source "$SCRIPT_DIR/lib/actions/uninstall.sh"
 
-export VERBOSE=0
-export LOG_ENABLED=0
+export VERBOSE=1
+export LOG_ENABLED=1
 
 usage() {
   cat <<'EOF'
@@ -31,6 +31,7 @@ Commands:
   help                 Show this help message
 
 Options:
+  --quiet              Disable verbose output and file logging
   --verbose            Show detailed debug output
   --log                Enable log files in ~/.dotfiles-logs
   --force              (uninstall only) Skip dependency checks
@@ -42,8 +43,8 @@ Examples:
   setup update               # Update all components
   setup uninstall            # Interactive uninstall
   setup uninstall vfox       # Uninstall specific component
-  setup --verbose install    # Verbose installation
-  setup --verbose --log install  # Verbose + file logging
+  setup --quiet install      # Minimal output, no file logging
+  setup --verbose --log install  # Explicit verbose + file logging
 
 Components:
   Essential (installed by default):
@@ -65,6 +66,13 @@ ACTION_ARGS=()
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --quiet)
+      VERBOSE=0
+      LOG_ENABLED=0
+      export VERBOSE
+      export LOG_ENABLED
+      shift
+      ;;
     --verbose)
       VERBOSE=1
       export VERBOSE

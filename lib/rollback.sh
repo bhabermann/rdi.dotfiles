@@ -56,8 +56,12 @@ commit_transaction() {
   fi
   
   unset "TRANSACTION_COMPONENTS[$component]"
-  
-  log "Installation successful: $component v$version"
+
+  if [[ -n "$version" && "$version" != "unknown" ]]; then
+    log "Installation successful: $component v$version"
+  else
+    log "Installation successful: $component"
+  fi
   return 0
 }
 

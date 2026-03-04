@@ -151,8 +151,8 @@ The installer will:
 ```bash
 ./setup                    # Install all components (default)
 ./setup install            # Same as above
-./setup install --verbose  # Detailed output
-./setup --verbose --log install  # Detailed output + log files
+./setup --quiet install    # Minimal output and no file logging
+./setup --verbose --log install  # Explicit verbose output + log files
 ```
 
 ## 🔧 Management Commands
@@ -160,13 +160,13 @@ The installer will:
 ### Verify Installation
 ```bash
 ./setup verify              # Run smoke tests
-./setup verify --verbose    # Detailed output
+./setup --quiet verify      # Minimal output and no file logging
 ```
 
 ### Update Components
 ```bash
 ./setup update              # Update all components
-./setup update --verbose --log  # Detailed output + log files
+./setup --quiet update      # Minimal output and no file logging
 ```
 
 ### Uninstall Components
@@ -185,9 +185,11 @@ Edit `config/versions.yaml` in component directories:
 `~/.dotfiles-installed` tracks components with status and versions
 
 ### Logs
-- `--verbose` prints debug output in the console
-- `--log` writes component logs to `~/.dotfiles-logs/`
-- Recommended for diagnostics: `./setup --verbose --log install`
+- `./setup` now defaults to verbose console output and file logging
+- `--quiet` disables verbose output and file logging for a single run
+- `--verbose` and `--log` can be used explicitly to re-enable either after `--quiet`
+- Progress steps are always shown; spinner animation appears only in interactive terminals
+- Log files are written to `~/.dotfiles-logs/`
 - Homebrew PATH is auto-synced during install/update (manual `eval "$(brew shellenv)"` is not required for the current run)
 - `update-corporate-ca` is executed automatically before `vfox` and fails fast if trust/bootstrap fails
 
@@ -310,6 +312,8 @@ brew search <package>
 
 ### vfox Version Manager
 
+Default managed runtime targets include Java `21-tem` (Temurin 21).
+
 ```bash
 # List available versions
 vfox available nodejs
@@ -365,9 +369,13 @@ source ~/.bashrc
 
 ### vfox Command Not Found
 
-**Solution:** Restart shell or source bashrc:
+`setup install` writes `vfox` activation to `~/.bashrc` and also `~/.zshrc` when it exists.
+
+**Solution:** Start a new shell session, or source your profile:
 ```bash
 source ~/.bashrc
+# or
+source ~/.zshrc
 ```
 
 ### vfox Download Failures (TLS/Certificate)
