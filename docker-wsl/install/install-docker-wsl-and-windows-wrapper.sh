@@ -32,7 +32,7 @@ EOF
 }
 
 is_wsl() {
-  [[ -n "${WSL_INTEROP:-}" ]] || grep -qi microsoft /proc/sys/kernel/osrelease 2>/dev/null
+  [[ -n "${WSL_INTEROP:-}" ]] || [[ -e /proc/sys/fs/binfmt_misc/WSLInterop ]]
 }
 
 require_cmd() {
