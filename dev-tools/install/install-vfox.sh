@@ -127,6 +127,25 @@ vfox_install_with_retry() {
   return 1
 }
 
+vfox_add_with_retry() {
+  local tool="$1"
+  local max_retries=3
+  local retry_delay=5
+
+  for ((attempt = 1; attempt <= max_retries; attempt++)); do
+    if vfox add "$tool"; then
+      return 0
+    fi
+    if [[ $attempt -lt $max_retries ]]; then
+      warn "Failed to add plugin $tool (attempt $attempt/$max_retries), retrying in ${retry_delay}s..."
+      sleep "$retry_delay"
+    fi
+  done
+
+  warn "Failed to add plugin $tool after $max_retries attempts"
+  return 1
+}
+
 install_tools() {
   debug "Installing tools from versions.yaml..."
   
