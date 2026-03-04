@@ -84,15 +84,20 @@ log "Installing essential components..."
 # Install Docker
 progress_step "Installing component: docker"
 if ! is_installed "docker"; then
-  begin_transaction "docker"
-  docker_args=()
-  [[ "$VERBOSE" -eq 1 ]] && docker_args+=("--verbose")
-  if "$REPO_ROOT/docker-wsl/install/install-docker-wsl-and-windows-wrapper.sh" "${docker_args[@]}"; then
-    commit_transaction "docker" "$(get_installed_version "docker")"
+  if ! is_wsl_env; then
+    warn "Skipping docker installation on non-WSL environment."
+    track_component "docker" "skip-non-wsl" "ok" ""
   else
-    rollback_transaction "docker"
-    err "Installation failed: docker"
-    exit 1
+    begin_transaction "docker"
+    docker_args=()
+    [[ "$VERBOSE" -eq 1 ]] && docker_args+=("--verbose")
+    if "$REPO_ROOT/docker-wsl/install/install-docker-wsl-and-windows-wrapper.sh" "${docker_args[@]}"; then
+      commit_transaction "docker" "$(get_installed_version "docker")"
+    else
+      rollback_transaction "docker"
+      err "Installation failed: docker"
+      exit 1
+    fi
   fi
 else
   log "Already installed: docker"
@@ -101,15 +106,20 @@ fi
 # Install Corporate CA updater
 progress_step "Installing component: ca-updater"
 if ! is_installed "ca-updater"; then
-  begin_transaction "ca-updater"
-  ca_args=()
-  [[ "$VERBOSE" -eq 1 ]] && ca_args+=("--verbose")
-  if "$REPO_ROOT/update-corporate-ca/install/install-update-corporate-ca.sh" "${ca_args[@]}"; then
-    commit_transaction "ca-updater" "$(get_installed_version "ca-updater")"
+  if ! is_wsl_env; then
+    warn "Skipping ca-updater installation on non-WSL environment."
+    track_component "ca-updater" "skip-non-wsl" "ok" ""
   else
-    rollback_transaction "ca-updater"
-    err "Installation failed: ca-updater"
-    exit 1
+    begin_transaction "ca-updater"
+    ca_args=()
+    [[ "$VERBOSE" -eq 1 ]] && ca_args+=("--verbose")
+    if "$REPO_ROOT/update-corporate-ca/install/install-update-corporate-ca.sh" "${ca_args[@]}"; then
+      commit_transaction "ca-updater" "$(get_installed_version "ca-updater")"
+    else
+      rollback_transaction "ca-updater"
+      err "Installation failed: ca-updater"
+      exit 1
+    fi
   fi
 else
   log "Already installed: ca-updater"
