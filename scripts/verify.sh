@@ -131,6 +131,12 @@ smoke_test_vfox() {
 
 smoke_test_docker() {
   debug "Testing docker component..."
+
+  if ! is_wsl_env && is_non_wsl_skip_marker "docker"; then
+    warn "Skipping docker verification on non-WSL (intentionally skipped during install)."
+    log "✓ docker: SKIPPED (non-WSL)"
+    return 0
+  fi
   
   # Check docker is in PATH
   if ! command -v docker &>/dev/null; then
@@ -150,6 +156,12 @@ smoke_test_docker() {
 
 smoke_test_ca-updater() {
   debug "Testing ca-updater component..."
+
+  if ! is_wsl_env && is_non_wsl_skip_marker "ca-updater"; then
+    warn "Skipping ca-updater verification on non-WSL (intentionally skipped during install)."
+    log "✓ ca-updater: SKIPPED (non-WSL)"
+    return 0
+  fi
   
   # Check if update-corporate-ca is installed
   if ! command -v update-corporate-ca &>/dev/null; then
