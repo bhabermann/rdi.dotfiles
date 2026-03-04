@@ -181,6 +181,50 @@ vfox_add_with_retry() {
   return 1
 }
 
+strip_ansi() {
+  sed -E 's/\x1B\[[0-9;]*[mK]//g'
+}
+
+resolve_installed_tool_version() {
+  local tool="$1"
+  local requested="$2"
+  local line
+  local token
+
+  while IFS= read -r line; do
+    # vfox list output can include ANSI and status marks; normalize first token only.
+    token="$(printf "%s\n" "$line" | strip_ansi | tr -d '\r' | awk '{print $1}')"
+    token="${token#v}"
+    if [[ -z "$token" ]]; then
+      continue
+    fi
+
+    if [[ "$requested" == "latest" || "$token" == "$requested" || "$token" == "$requested".* ]]; then
+      echo "$token"
+      return 0
+    fi
+  done < <(vfox list "$tool" 2>/dev/null || true)
+
+  return 1
+}
+
+set_global_tool_version() {
+  local tool="$1"
+  local requested="$2"
+  local resolved=""
+
+  if vfox use -g "$tool@$requested" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  resolved="$(resolve_installed_tool_version "$tool" "$requested" || true)"
+  if [[ -n "$resolved" ]] && vfox use -g "$tool@$resolved" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  return 1
+}
+
 install_tools() {
   debug "Installing tools from versions.yaml..."
   
@@ -222,8 +266,10 @@ install_tools() {
       continue
     fi
     
-    # Set as global version
-    vfox use -g "$tool@$version" || warn "Failed to set global version: $tool@$version"
+    # Set as global version (resolve installed exact version when needed).
+    if ! set_global_tool_version "$tool" "$version"; then
+      warn "Failed to set global version: $tool@$version"
+    fi
     
     log "Installed: $tool@$version"
   done

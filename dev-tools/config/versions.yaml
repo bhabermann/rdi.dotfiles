@@ -2,10 +2,10 @@ tools:
   nodejs:
     version: "24"
   python:
-    version: "latest"
+    version: "3.14"
   golang:
     version: "latest"
   dotnet:
     version: "10"
   java:
-    version: "21-tem"
+    version: "21+35-tem"
