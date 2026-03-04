@@ -461,6 +461,10 @@ refresh_corporate_ca_before_vfox() {
   local ca_args=()
 
   if ! command -v "$ca_cmd" &>/dev/null; then
+    if ! is_wsl_env; then
+      warn "Skipping corporate CA refresh before vfox on non-WSL (ca-updater unavailable)."
+      return 0
+    fi
     err "Required command not found before vfox install: $ca_cmd"
     err "Install or fix ca-updater first, then rerun."
     return 1
