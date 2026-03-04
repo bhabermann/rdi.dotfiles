@@ -2,7 +2,6 @@
 set -euo pipefail
 
 # Run setup in a plain ubuntu:24.04 container.
-# WSL-only components (docker + ca-updater) are pre-seeded as installed.
 
 IMAGE="ubuntu:24.04"
 REPO_DIR_LINUX="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -36,26 +35,11 @@ docker run --rm \
     cp -a /workspace /home/testuser/.dotfiles
     chown -R testuser:testuser /home/testuser/.dotfiles
 
-    # Install ca-updater command so pre-vfox CA refresh can run.
-    install -m 0755 /workspace/update-corporate-ca/bin/update-corporate-ca /usr/local/bin/update-corporate-ca
-    install -m 0644 /workspace/update-corporate-ca/config/update-corporate-ca.conf /etc/update-corporate-ca.conf
-
     sudo -u testuser -H bash --noprofile --norc -c "
       set -euo pipefail
       cd \$HOME/.dotfiles
 
-      # WSL-only components are not meaningful in plain Docker.
-      cat > \$HOME/.dotfiles-installed <<'\"'\"'JSON'\"'\"'
-{\"docker\":{\"installed_at\":\"pre-seeded\",\"version\":\"skip\",\"status\":\"ok\",\"backup_dir\":\"\"},\"ca-updater\":{\"installed_at\":\"pre-seeded\",\"version\":\"skip\",\"status\":\"ok\",\"backup_dir\":\"\"}}
-JSON
-
       ./setup --verbose --log install
-
-      # In plain Docker we pre-seed docker only to skip WSL-specific install.
-      # Remove it from tracking so verify does not require docker CLI/daemon.
-      tmp_file=\$(mktemp)
-      jq '"'"'del(.docker)'"'"' \$HOME/.dotfiles-installed > \$tmp_file
-      mv \$tmp_file \$HOME/.dotfiles-installed
 
       # Ensure Homebrew-installed tools are in PATH for verification.
       if [ -x /home/linuxbrew/.linuxbrew/bin/brew ]; then

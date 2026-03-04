@@ -65,6 +65,15 @@ git ───────┤
 - Sudo privileges
 - Internet connectivity
 
+### Raw Ubuntu (non-WSL) behavior
+
+`./setup install` also runs on plain Ubuntu. In non-WSL environments, WSL-only components are intentionally skipped:
+
+- `docker` (WSL + Windows wrapper integration)
+- `ca-updater` (corporate CA updater integration path)
+
+All other components continue to install and `./setup verify` will report those two as skipped on non-WSL instead of failing.
+
 ## 🖥️ Setting Up WSL 2 with Ubuntu
 
 If you don't have WSL 2 installed yet, follow these steps from **PowerShell (Run as Administrator)**:
