@@ -103,6 +103,7 @@ main() {
   for component in "${update_order[@]}"; do
     local status
     status=$(read_component_status "$component")
+    local component_dir="$component"
     
     log "\nUpdating: $component"
     
@@ -113,12 +114,18 @@ main() {
     
     # Begin transaction
     begin_transaction "$component"
+
+    # Handle special case where component name differs from directory name
+    [[ "$component" == "vfox" ]] && component_dir="dev-tools"
     
-    # Run the installer
-    local installer="$REPO_ROOT/$component/install/install-$component.sh"
+    # Resolve installer script
+    local installer_pattern="$REPO_ROOT/$component_dir/install/install-*.sh"
+    local installer
+    # shellcheck disable=SC2086
+    installer=$(ls $installer_pattern 2>/dev/null | head -n1)
     
-    if [[ ! -f "$installer" ]]; then
-      warn "Installer not found: $installer"
+    if [[ -z "$installer" || ! -f "$installer" ]]; then
+      warn "Installer not found for component: $component"
       warn "Skipping $component"
       rollback_transaction "$component"
       continue
@@ -126,8 +133,19 @@ main() {
     
     local verbose_flag=""
     [[ "$VERBOSE" -eq 1 ]] && verbose_flag="--verbose"
+
+    if [[ "$component" == "vfox" ]]; then
+      if ! refresh_corporate_ca_before_vfox; then
+        rollback_cascade "$component"
+        err "Update failed for: $component"
+        exit 1
+      fi
+    fi
     
     if "$installer" $verbose_flag; then
+      if [[ "$component" == "homebrew" ]]; then
+        sync_homebrew_path
+      fi
       local version
       version=$(get_installed_version "$component")
       

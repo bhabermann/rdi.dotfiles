@@ -18,7 +18,16 @@ debug() { [[ "$VERBOSE" -eq 1 ]] && printf "  [DEBUG] %s\n" "$*" || true; }
 
 require_sudo() {
   if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
-    sudo -v
+    # Prefer non-interactive sudo for automation contexts.
+    if ! sudo -n true 2>/dev/null; then
+      if [[ -t 0 ]]; then
+        sudo -v
+      else
+        err "sudo access is required but no non-interactive sudo is available."
+        err "Run in an interactive shell to authenticate, or configure NOPASSWD."
+        exit 1
+      fi
+    fi
   fi
 }
 

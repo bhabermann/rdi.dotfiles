@@ -112,6 +112,20 @@ wsl
 
 You are now inside Ubuntu on WSL 2 and ready to install the dotfiles.
 
+## 🚀 Fresh Distro Bootstrap (PowerShell)
+
+From Windows PowerShell, create a brand-new Ubuntu-based WSL distro, clone this repo, and run install + verify with verbose logging:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\wsl\bootstrap-dotfiles.ps1
+```
+
+Optional parameters:
+
+```powershell
+.\scripts\wsl\bootstrap-dotfiles.ps1 -DistroName rdi-dotfiles-test -Branch dev
+```
+
 ## Installation
 
 ```bash
@@ -129,7 +143,8 @@ The installer will:
 6. Set up shell environment
 7. Install Homebrew
 8. Install CLI tools (zoxide, fzf, ripgrep, bat)
-9. Install and configure vfox (Node.js, Python, Go, .NET, Java)
+9. Refresh corporate CA certificates before vfox downloads
+10. Install and configure vfox (Node.js, Python, Go, .NET, Java)
 
 ### Options
 
@@ -137,6 +152,7 @@ The installer will:
 ./setup                    # Install all components (default)
 ./setup install            # Same as above
 ./setup install --verbose  # Detailed output
+./setup --verbose --log install  # Detailed output + log files
 ```
 
 ## 🔧 Management Commands
@@ -150,6 +166,7 @@ The installer will:
 ### Update Components
 ```bash
 ./setup update              # Update all components
+./setup update --verbose --log  # Detailed output + log files
 ```
 
 ### Uninstall Components
@@ -166,6 +183,13 @@ Edit `config/versions.yaml` in component directories:
 
 ### Installation Tracking
 `~/.dotfiles-installed` tracks components with status and versions
+
+### Logs
+- `--verbose` prints debug output in the console
+- `--log` writes component logs to `~/.dotfiles-logs/`
+- Recommended for diagnostics: `./setup --verbose --log install`
+- Homebrew PATH is auto-synced during install/update (manual `eval "$(brew shellenv)"` is not required for the current run)
+- `update-corporate-ca` is executed automatically before `vfox` and fails fast if trust/bootstrap fails
 
 ## 🔄 Common Workflows
 
@@ -345,6 +369,17 @@ source ~/.bashrc
 ```bash
 source ~/.bashrc
 ```
+
+### vfox Download Failures (TLS/Certificate)
+
+`setup install` and `setup update` now run `sudo update-corporate-ca` before `vfox`. If this fails:
+
+```bash
+update-corporate-ca --verbose
+update-corporate-ca --dry-run
+```
+
+Then verify VPN/proxy connectivity and `/etc/update-corporate-ca.conf`.
 
 ## Repository Structure
 

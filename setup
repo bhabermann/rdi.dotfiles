@@ -17,6 +17,7 @@ source "$SCRIPT_DIR/lib/actions/update.sh"
 source "$SCRIPT_DIR/lib/actions/uninstall.sh"
 
 export VERBOSE=0
+export LOG_ENABLED=0
 
 usage() {
   cat <<'EOF'
@@ -31,6 +32,7 @@ Commands:
 
 Options:
   --verbose            Show detailed debug output
+  --log                Enable log files in ~/.dotfiles-logs
   --force              (uninstall only) Skip dependency checks
 
 Examples:
@@ -41,6 +43,7 @@ Examples:
   setup uninstall            # Interactive uninstall
   setup uninstall vfox       # Uninstall specific component
   setup --verbose install    # Verbose installation
+  setup --verbose --log install  # Verbose + file logging
 
 Components:
   Essential (installed by default):
@@ -67,6 +70,11 @@ while [[ $# -gt 0 ]]; do
       export VERBOSE
       shift
       ;;
+    --log)
+      LOG_ENABLED=1
+      export LOG_ENABLED
+      shift
+      ;;
     --force)
       FORCE=1
       export FORCE
@@ -77,21 +85,23 @@ while [[ $# -gt 0 ]]; do
       exit 0
       ;;
     install|verify|update|uninstall)
-      ACTION="$1"
-      shift
-      # Remaining args are for the action
-      ACTION_ARGS=("$@")
-      break
+      if [[ -z "$ACTION" ]]; then
+        ACTION="$1"
+        shift
+      else
+        ACTION_ARGS+=("$1")
+        shift
+      fi
       ;;
     *)
-      if [[ -z "$ACTION" ]]; then
+      if [[ -n "$ACTION" ]]; then
+        ACTION_ARGS+=("$1")
+        shift
+      else
         err "Unknown command: $1"
         echo ""
         usage
         exit 1
-      else
-        ACTION_ARGS+=("$1")
-        shift
       fi
       ;;
   esac
@@ -106,13 +116,13 @@ fi
 # Execute the requested action
 case "$ACTION" in
   install)
-    action_install
+    action_install "${ACTION_ARGS[@]}"
     ;;
   verify)
-    action_verify
+    action_verify "${ACTION_ARGS[@]}"
     ;;
   update)
-    action_update
+    action_update "${ACTION_ARGS[@]}"
     ;;
   uninstall)
     action_uninstall "${ACTION_ARGS[@]}"

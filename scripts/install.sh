@@ -11,6 +11,7 @@ source "$REPO_ROOT/lib/rollback.sh"
 source "$REPO_ROOT/lib/import.sh"
 
 export VERBOSE=0
+export LOG_ENABLED=0
 
 # Parse arguments
 for arg in "$@"; do
@@ -19,9 +20,13 @@ for arg in "$@"; do
       VERBOSE=1
       export VERBOSE
       ;;
+    --log)
+      LOG_ENABLED=1
+      export LOG_ENABLED
+      ;;
     --help|-h)
       cat <<'EOF'
-Usage: ./install.sh [--verbose]
+Usage: ./install.sh [--verbose] [--log]
 
 Installs essential dotfiles components:
   - Docker Engine (with Windows wrappers)
@@ -33,6 +38,7 @@ Installs essential dotfiles components:
 
 Options:
   --verbose    Show detailed installation output
+  --log        Enable log files in ~/.dotfiles-logs
   --help       Show this help message
 EOF
       exit 0
@@ -44,14 +50,20 @@ EOF
   esac
 done
 
-
 # Step 0: Install all required Ubuntu dependencies first
 log "Installing required Ubuntu dependencies..."
-sudo apt-get update -qq
-sudo apt-get install -y -qq jq curl ca-certificates git bash sudo build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev >/dev/null 2>&1
+if [[ "$VERBOSE" -eq 1 ]]; then
+  sudo apt-get update
+  sudo apt-get install -y jq curl ca-certificates git bash sudo build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev
+else
+  sudo apt-get update -qq
+  sudo apt-get install -y -qq jq curl ca-certificates git bash sudo build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev >/dev/null 2>&1
+fi
 log "All Ubuntu dependencies installed."
 
 log "Starting dotfiles installation..."
+debug "Verbose mode enabled"
+debug "File logging enabled: $LOG_ENABLED"
 
 # Ensure jq is available for JSON tracking
 ensure_jq
@@ -67,7 +79,9 @@ log "Installing essential components..."
 # Install Docker
 if ! is_installed "docker"; then
   begin_transaction "docker"
-  if "$REPO_ROOT/docker-wsl/install/install-docker-wsl-and-windows-wrapper.sh" >/dev/null 2>&1; then
+  docker_args=()
+  [[ "$VERBOSE" -eq 1 ]] && docker_args+=("--verbose")
+  if "$REPO_ROOT/docker-wsl/install/install-docker-wsl-and-windows-wrapper.sh" "${docker_args[@]}"; then
     track_component "docker" "$(docker --version 2>/dev/null | awk '{print $3}' | tr -d ',')" "ok"
     commit_transaction "docker"
   else
@@ -82,7 +96,9 @@ fi
 # Install Corporate CA updater
 if ! is_installed "ca-updater"; then
   begin_transaction "ca-updater"
-  if "$REPO_ROOT/update-corporate-ca/install/install-update-corporate-ca.sh" >/dev/null 2>&1; then
+  ca_args=()
+  [[ "$VERBOSE" -eq 1 ]] && ca_args+=("--verbose")
+  if "$REPO_ROOT/update-corporate-ca/install/install-update-corporate-ca.sh" "${ca_args[@]}"; then
     track_component "ca-updater" "1.0.0" "ok"
     commit_transaction "ca-updater"
   else
@@ -112,7 +128,13 @@ for component in "${ORDERED_COMPONENTS[@]}"; do
     # shellcheck disable=SC2086
     installer_path=$(ls $installer 2>/dev/null | head -n1)
     if [[ -f "$installer_path" ]]; then
-      "$installer_path" >/dev/null 2>&1 || true
+      if [[ "$component" == "vfox" ]]; then
+        refresh_corporate_ca_before_vfox || exit 1
+      fi
+      component_args=()
+      [[ "$VERBOSE" -eq 1 ]] && component_args+=("--verbose")
+      "$installer_path" "${component_args[@]}" || true
+      [[ "$component" == "homebrew" ]] && sync_homebrew_path
     fi
     continue
   fi
@@ -135,7 +157,18 @@ for component in "${ORDERED_COMPONENTS[@]}"; do
     exit 1
   fi
   
-  if "$installer_path"; then
+  if [[ "$component" == "vfox" ]]; then
+    if ! refresh_corporate_ca_before_vfox; then
+      rollback_cascade "$component"
+      err "Installation failed: $component"
+      exit 1
+    fi
+  fi
+
+  component_args=()
+  [[ "$VERBOSE" -eq 1 ]] && component_args+=("--verbose")
+  if "$installer_path" "${component_args[@]}"; then
+    [[ "$component" == "homebrew" ]] && sync_homebrew_path
     commit_transaction "$component"
   else
     err "Installation failed: $component"

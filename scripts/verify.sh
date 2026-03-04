@@ -185,6 +185,25 @@ smoke_test_homebrew() {
   return 0
 }
 
+smoke_test_cli-tools() {
+  debug "Testing cli-tools component..."
+
+  # zoxide is the required tool; others are optional in installer validation.
+  if ! command -v zoxide &>/dev/null; then
+    err "Missing required CLI tool: zoxide"
+    return 1
+  fi
+
+  for tool in fzf rg bat; do
+    if ! command -v "$tool" &>/dev/null; then
+      warn "Optional CLI tool not found: $tool"
+    fi
+  done
+
+  log "✓ cli-tools: OK"
+  return 0
+}
+
 # Main verification logic
 verify_component() {
   local component="$1"

@@ -340,3 +340,39 @@ require_cmd() {
 ensure_jq() {
   require_cmd jq jq
 }
+
+# Load Homebrew environment into current shell process.
+sync_homebrew_path() {
+  local brew_bin="/home/linuxbrew/.linuxbrew/bin/brew"
+
+  if [[ ! -x "$brew_bin" ]]; then
+    debug "Homebrew binary not found at $brew_bin (skipping PATH sync)"
+    return 0
+  fi
+
+  # shellcheck disable=SC1091
+  eval "$("$brew_bin" shellenv)"
+  debug "Homebrew PATH loaded for current process"
+}
+
+# Refresh trusted corporate CA certificates before network-heavy installs.
+refresh_corporate_ca_before_vfox() {
+  local ca_cmd="update-corporate-ca"
+  local ca_args=()
+
+  if ! command -v "$ca_cmd" &>/dev/null; then
+    err "Required command not found before vfox install: $ca_cmd"
+    err "Install or fix ca-updater first, then rerun."
+    return 1
+  fi
+
+  [[ "${VERBOSE:-0}" -eq 1 ]] && ca_args+=("--verbose")
+
+  log "Refreshing corporate CA certificates before vfox..."
+  if ! sudo "$ca_cmd" "${ca_args[@]}"; then
+    err "Corporate CA refresh failed; cannot continue with vfox installation."
+    return 1
+  fi
+
+  log "Corporate CA refresh completed."
+}
