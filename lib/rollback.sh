@@ -38,10 +38,7 @@ commit_transaction() {
   debug "Committing transaction for: $component"
   
   # Validate component
-  local validation_result
-  validation_result=$(validate_component "$component")
-  
-  if [[ "$validation_result" != "ok" ]]; then
+  if ! validate_component "$component" >/dev/null; then
     warn "Validation failed for $component"
     rollback_transaction "$component"
     return 1
@@ -136,36 +133,36 @@ validate_component() {
   
   case "$component" in
     git)
-      validate_command "git --version" "git version"
+      validate_command "git --version" "git version" >/dev/null
       ;;
     shell)
-      validate_command "bash --version" "GNU bash"
+      validate_command "bash --version" "GNU bash" >/dev/null
       ;;
     vfox)
-      validate_command "vfox --version" "vfox"
+      validate_command "vfox --version" "vfox" >/dev/null
       ;;
     cli-tools)
       # Check at least one tool is installed
       if command -v fzf &>/dev/null || command -v rg &>/dev/null; then
-        echo "ok"
+        return 0
       else
-        echo "failed"
+        return 1
       fi
       ;;
     kubernetes)
-      validate_command "kubectl version --client" "Client Version"
+      validate_command "kubectl version --client" "Client Version" >/dev/null
       ;;
     cloud)
       # Check at least one cloud CLI is installed
       if command -v aws &>/dev/null || command -v az &>/dev/null || command -v gcloud &>/dev/null; then
-        echo "ok"
+        return 0
       else
-        echo "failed"
+        return 1
       fi
       ;;
     *)
       debug "No validation defined for: $component"
-      echo "ok"
+      return 0
       ;;
   esac
 }
