@@ -175,7 +175,10 @@ install_tools() {
     
     # Add plugin if not already added
     if ! vfox list | grep -q "^$tool"; then
-      vfox add "$tool" || warn "Failed to add plugin: $tool"
+      if ! vfox_add_with_retry "$tool"; then
+        warn "Skipping $tool — plugin add failed after retries"
+        continue
+      fi
     fi
     
     # Install version with retry for transient network failures
