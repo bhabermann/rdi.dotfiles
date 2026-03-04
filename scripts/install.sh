@@ -94,7 +94,6 @@ if ! is_installed "docker"; then
     if "$REPO_ROOT/docker-wsl/install/install-docker-wsl-and-windows-wrapper.sh" "${docker_args[@]}"; then
       commit_transaction "docker" "$(get_installed_version "docker")"
     else
-      rollback_transaction "docker"
       err "Installation failed: docker"
       exit 1
     fi
@@ -116,7 +115,6 @@ if ! is_installed "ca-updater"; then
     if "$REPO_ROOT/update-corporate-ca/install/install-update-corporate-ca.sh" "${ca_args[@]}"; then
       commit_transaction "ca-updater" "$(get_installed_version "ca-updater")"
     else
-      rollback_transaction "ca-updater"
       err "Installation failed: ca-updater"
       exit 1
     fi
@@ -168,14 +166,11 @@ for component in "${ORDERED_COMPONENTS[@]}"; do
   
   if [[ ! -f "$installer_path" ]]; then
     err "Installer not found: $installer_path"
-    rollback_transaction "$component"
-    rollback_cascade "$component"
     exit 1
   fi
   
   if [[ "$component" == "vfox" ]]; then
     if ! refresh_corporate_ca_before_vfox; then
-      rollback_cascade "$component"
       err "Installation failed: $component"
       exit 1
     fi
@@ -188,8 +183,6 @@ for component in "${ORDERED_COMPONENTS[@]}"; do
     commit_transaction "$component" "$(get_installed_version "$component")"
   else
     err "Installation failed: $component"
-    rollback_transaction "$component"
-    rollback_cascade "$component"
     exit 1
   fi
 done

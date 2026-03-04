@@ -2,7 +2,7 @@ tools:
   nodejs:
     version: "24"
   python:
-    version: "3.14"
+    version: "3.14.3"
   golang:
     version: "latest"
   dotnet:

@@ -36,7 +36,7 @@ Description:
   - Automatically upgrades 'imported' components to 'ok'
   - Skips components with status 'failed' (with warning)
   - Maintains dependency order (DAG)
-  - Supports rollback on failure
+  - Fails fast on component errors (no rollback)
 EOF
 }
 
@@ -127,10 +127,9 @@ main() {
     installer=$(ls $installer_pattern 2>/dev/null | head -n1)
     
     if [[ -z "$installer" || ! -f "$installer" ]]; then
-      warn "Installer not found for component: $component"
-      warn "Skipping $component"
-      rollback_transaction "$component"
-      continue
+      err "Installer not found for component: $component"
+      err "Update failed for: $component"
+      exit 1
     fi
     
     local verbose_flag=""
@@ -138,7 +137,6 @@ main() {
 
     if [[ "$component" == "vfox" ]]; then
       if ! refresh_corporate_ca_before_vfox; then
-        rollback_cascade "$component"
         err "Update failed for: $component"
         exit 1
       fi
@@ -158,7 +156,6 @@ main() {
       
       commit_transaction "$component" "$version"
     else
-      rollback_cascade "$component"
       err "Update failed for: $component"
       exit 1
     fi

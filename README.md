@@ -4,7 +4,7 @@ Essential-only dotfiles management system for WSL (Windows Subsystem for Linux) 
 
 ## ✨ Features
 
-- **Transactional Installations**: Automatic rollback on failure
+- **Fail-Fast Installations**: Stops on failure without rollback
 - **Dependency Management**: Components installed in correct order
 - **Backup System**: Automatic backup of configs with retention
 - **Validation**: Comprehensive smoke tests for all components
@@ -411,7 +411,7 @@ Then verify VPN/proxy connectivity and `/etc/update-corporate-ca.conf`.
 ├── lib/                          # Shared libraries
 │   ├── common.sh                 # Utilities
 │   ├── dependencies.sh           # DAG management
-│   ├── rollback.sh               # Transactions
+│   ├── rollback.sh               # Transaction/rollback helpers
 │   ├── import.sh                 # Auto-import
 │   └── actions/                  # Action wrappers for setup
 ├── docker-wsl/                   # Docker installer

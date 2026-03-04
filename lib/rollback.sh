@@ -40,7 +40,11 @@ commit_transaction() {
   # Validate component
   if ! validate_component "$component" >/dev/null; then
     warn "Validation failed for $component"
-    rollback_transaction "$component"
+    track_component "$component" "$version" "failed" "$backup_dir"
+    if [[ "${TRANSACTION_STACK[-1]:-}" == "$component" ]]; then
+      unset 'TRANSACTION_STACK[-1]'
+    fi
+    unset "TRANSACTION_COMPONENTS[$component]"
     return 1
   fi
   
